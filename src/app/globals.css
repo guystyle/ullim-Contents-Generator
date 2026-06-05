@@ -4,13 +4,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light (Warm Ivory) ── */
 :root {
-  --background: #0a0a0a;
-  --surface: #111111;
-  --border: #1f1f1f;
-  --muted: #2a2a2a;
-  --foreground: #e0e0e0;
-  --foreground-muted: #888888;
+  --bg:           #F5F5DC;
+  --surface:      #EDECD3;
+  --border:       #C2B280;
+  --border-muted: #D9D6C0;
+  --fg:           #1A2B3C;
+  --fg-muted:     #B29588;
+  --accent:       #2C7A7B;
+  --accent-hover: #235F60;
+  --btn-bg:       #1A2B3C;
+  --btn-fg:       #F5F5DC;
+  --tag-bg:       #FFF4C2;
+  --tag-border:   #C2B280;
+  --tag-fg:       #1A2B3C;
+  --error-fg:     #8B3E2F;
+  --error-bg:     rgba(139,62,47,0.08);
+  --error-border: rgba(139,62,47,0.3);
+  --selection:    rgba(44,122,123,0.2);
+}
+
+/* ── Dark mode ── */
+.dark {
+  --bg:           #0f1318;
+  --surface:      #161c22;
+  --border:       #2C7A7B;
+  --border-muted: #1e2a2a;
+  --fg:           #E8E0D0;
+  --fg-muted:     #6B7C8A;
+  --accent:       #2C7A7B;
+  --accent-hover: #3A9899;
+  --btn-bg:       #2C7A7B;
+  --btn-fg:       #F5F5DC;
+  --tag-bg:       rgba(44,122,123,0.12);
+  --tag-border:   rgba(44,122,123,0.3);
+  --tag-fg:       #C2B280;
+  --error-fg:     #D4846A;
+  --error-bg:     rgba(139,62,47,0.12);
+  --error-border: rgba(139,62,47,0.3);
+  --selection:    rgba(44,122,123,0.25);
 }
 
 * {
@@ -23,23 +56,17 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--fg);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 ::selection {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--selection);
 }
 
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: var(--background);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 2px;
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-muted); border-radius: 2px; }
