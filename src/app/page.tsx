@@ -1,18 +1,27 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import type {
-  GenerateRequest,
-  GenerateResponse,
-  Brand,
-  ContentType,
-  Language,
-} from './api/generate/route'
+import type { GenerateRequest, GenerateResponse, Brand, ContentType } from './api/generate/route'
 
-const CONTENT_TYPES: { value: ContentType; label: string; desc: string }[] = [
-  { value: 'artist-image', label: '아티스트 이미지', desc: '캐러셀 이미지 카드 내용 (한/영)' },
-  { value: 'carousel-caption', label: '캐러셀 캡션', desc: '아티스트 캐러셀 포스트 캡션' },
-  { value: 'reels-caption', label: '릴스 캡션', desc: '릴스 포스터 포스트 캡션' },
+const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
+  {
+    value: 'artist-image',
+    label: '아티스트 이미지',
+    desc: '바이오 → 한70 / 영130',
+    placeholder: '아티스트 바이오그래피 원문을 붙여넣으세요.\n\ne.g. IDEALL is a Seoul-based DJ who blends disco, bossa nova and melodic house, drawing on memories of love and the sea...',
+  },
+  {
+    value: 'artist-caption',
+    label: '아티스트 캡션',
+    desc: '바이오 → 캡션 본문',
+    placeholder: '아티스트 바이오그래피 원문을 붙여넣으세요. (캐러셀 포스트 본문용으로 정제됩니다)',
+  },
+  {
+    value: 'poster-caption',
+    label: '포스터 캡션',
+    desc: '이벤트 정보 → 한/영 풀 캡션',
+    placeholder: '이벤트 정보를 자유롭게 붙여넣으세요.\n\ne.g.\nDuty Free Zone vol.13\n2026.05.21 (목) @ BAR UNION (@unionseoul)\n라인업: mingsturn, ÅNGEL 004 (live), T Pharo\n테마: 해방, 흐름, 날카로운 전자음과 현악의 질감',
+  },
 ]
 
 const BRANDS: { value: Brand; label: string }[] = [
@@ -87,30 +96,6 @@ function InputLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Optional() {
-  return <span className="normal-case tracking-normal font-normal" style={{ color: 'var(--border)' }}>(선택)</span>
-}
-
-function InputField({
-  value, onChange, placeholder, textarea,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  textarea?: boolean
-}) {
-  const shared = {
-    value,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(e.target.value),
-    placeholder,
-    className: 'w-full rounded-sm px-4 py-3 text-sm focus:outline-none transition-colors',
-    style: { background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)' } as React.CSSProperties,
-    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => (e.currentTarget.style.borderColor = 'var(--accent)'),
-    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => (e.currentTarget.style.borderColor = 'var(--border-muted)'),
-  }
-  return textarea ? <textarea {...shared} rows={3} /> : <input type="text" {...shared} />
-}
-
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -127,12 +112,12 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   )
 }
 
-function OutputCard({ title, body, copyLabel }: { title: string; body: string; copyLabel: string }) {
+function OutputCard({ title, body, copyLabel, showCount }: { title: string; body: string; copyLabel: string; showCount?: boolean }) {
   return (
     <div className="rounded-sm p-5 space-y-3" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--fg-muted)' }}>
-          {title} <span style={{ color: 'var(--border)' }}>· {body.length}자</span>
+          {title}{showCount && <span style={{ color: 'var(--border)' }}> · {body.length}자</span>}
         </span>
         <CopyButton text={body} label={copyLabel} />
       </div>
@@ -147,18 +132,7 @@ export default function Home() {
   const [dark, setDark] = useState(false)
   const [brand, setBrand] = useState<Brand>('ullim')
   const [contentType, setContentType] = useState<ContentType>('artist-image')
-  const [language, setLanguage] = useState<Language>('both')
-
-  // fields
-  const [artistName, setArtistName] = useState('')
-  const [origin, setOrigin] = useState('')
-  const [genres, setGenres] = useState('')
-  const [vibe, setVibe] = useState('')
-  const [partyName, setPartyName] = useState('')
-  const [dateVenue, setDateVenue] = useState('')
-  const [lineup, setLineup] = useState('')
-  const [ticketLink, setTicketLink] = useState('')
-  const [notes, setNotes] = useState('')
+  const [input, setInput] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -172,35 +146,17 @@ export default function Home() {
     localStorage.setItem('ullim-theme', dark ? 'dark' : 'light')
   }, [dark])
 
-  const isArtist = contentType === 'artist-image'
-  const isReels = contentType === 'reels-caption'
+  const current = CONTENT_TYPES.find((t) => t.value === contentType)!
+  const isImage = contentType === 'artist-image'
 
   const handleGenerate = useCallback(async () => {
     setError(null)
-    if (isArtist && !artistName.trim() && !vibe.trim()) {
-      setError('아티스트명 또는 특징/분위기를 입력해주세요.')
+    if (!input.trim()) {
+      setError('내용을 입력해주세요.')
       return
     }
-    if (!isArtist && !partyName.trim() && !vibe.trim()) {
-      setError('이벤트명 또는 분위기/키워드를 입력해주세요.')
-      return
-    }
-
     setLoading(true)
-    const body: GenerateRequest = {
-      contentType,
-      brand,
-      language,
-      artistName: artistName.trim() || undefined,
-      origin: origin.trim() || undefined,
-      genres: genres.trim() || undefined,
-      vibe: vibe.trim() || undefined,
-      partyName: partyName.trim() || undefined,
-      dateVenue: dateVenue.trim() || undefined,
-      lineup: lineup.trim() || undefined,
-      ticketLink: ticketLink.trim() || undefined,
-      notes: notes.trim() || undefined,
-    }
+    const body: GenerateRequest = { contentType, brand, input: input.trim() }
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -215,7 +171,10 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [isArtist, contentType, brand, language, artistName, origin, genres, vibe, partyName, dateVenue, lineup, ticketLink, notes])
+  }, [contentType, brand, input])
+
+  const hasKR = !!result?.korean?.trim()
+  const hasEN = !!result?.english?.trim()
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--fg)' }}>
@@ -252,11 +211,7 @@ export default function Home() {
                     key={t.value}
                     onClick={() => { setContentType(t.value); setResult(null) }}
                     className="text-left px-3 py-3 rounded-sm border transition-all duration-150"
-                    style={active ? {
-                      borderColor: 'var(--accent)', background: 'var(--surface)',
-                    } : {
-                      borderColor: 'var(--border-muted)', background: 'transparent',
-                    }}
+                    style={active ? { borderColor: 'var(--accent)', background: 'var(--surface)' } : { borderColor: 'var(--border-muted)', background: 'transparent' }}
                   >
                     <div className="text-xs font-medium" style={{ color: active ? 'var(--accent)' : 'var(--fg)' }}>{t.label}</div>
                     <div className="text-[10px] mt-1 leading-tight" style={{ color: 'var(--fg-muted)' }}>{t.desc}</div>
@@ -266,70 +221,20 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Fields — artist-image */}
-          {isArtist ? (
-            <>
-              <div>
-                <InputLabel>아티스트명</InputLabel>
-                <InputField value={artistName} onChange={setArtistName} placeholder="e.g. IDEALL" />
-              </div>
-              <div>
-                <InputLabel>출신 / 활동지 <Optional /></InputLabel>
-                <InputField value={origin} onChange={setOrigin} placeholder="e.g. 루이빌, KY USA / 오르후스 → 서울" />
-              </div>
-              <div>
-                <InputLabel>장르</InputLabel>
-                <InputField value={genres} onChange={setGenres} placeholder="e.g. melodic house, disco, bossa nova" />
-              </div>
-              <div>
-                <InputLabel>특징 / 분위기</InputLabel>
-                <InputField value={vibe} onChange={setVibe} textarea placeholder="e.g. 따뜻한 연결, 해변의 기억 / 어두운 애시드, 그루비한 베이스" />
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <InputLabel>이벤트 / 파티명</InputLabel>
-                <InputField value={partyName} onChange={setPartyName} placeholder={brand === 'dfz' ? 'e.g. DFZ vol.3' : 'e.g. ullim vol.1 – The First Wave'} />
-              </div>
-              <div>
-                <InputLabel>날짜 / 장소 <Optional /></InputLabel>
-                <InputField value={dateVenue} onChange={setDateVenue} placeholder={brand === 'dfz' ? 'e.g. 2025.08.16 @ bar union, Itaewon' : 'e.g. 2025.08.16 @ Mellow Seoul'} />
-              </div>
-              {!isReels && (
-                <div>
-                  <InputLabel>라인업 <Optional /></InputLabel>
-                  <InputField value={lineup} onChange={setLineup} placeholder="e.g. IDEALL, Lurkie, ..." />
-                </div>
-              )}
-              <div>
-                <InputLabel>분위기 / 키워드</InputLabel>
-                <InputField value={vibe} onChange={setVibe} placeholder="e.g. 잔향, 파도, 첫 울림 / flow, frequency" />
-              </div>
-              {!isReels && (
-                <div>
-                  <InputLabel>예매 / 링크 <Optional /></InputLabel>
-                  <InputField value={ticketLink} onChange={setTicketLink} placeholder="e.g. 프로필 링크 / DM" />
-                </div>
-              )}
-              <div>
-                <InputLabel>추가 메모 <Optional /></InputLabel>
-                <InputField value={notes} onChange={setNotes} textarea placeholder="강조하고 싶은 내용이 있다면" />
-              </div>
-            </>
-          )}
-
-          {/* Language (caption only) */}
-          {!isArtist && (
-            <div>
-              <InputLabel>언어</InputLabel>
-              <div className="flex gap-2">
-                {([['korean', '한국어'], ['english', 'English'], ['both', '둘 다']] as [Language, string][]).map(([val, label]) => (
-                  <Pill key={val} active={language === val} onClick={() => setLanguage(val)}>{label}</Pill>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Input */}
+          <div>
+            <InputLabel>{isImage || contentType === 'artist-caption' ? '아티스트 바이오그래피' : '이벤트 정보'}</InputLabel>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={current.placeholder}
+              rows={9}
+              className="w-full rounded-sm px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
+            />
+          </div>
 
           {error && (
             <p className="text-xs rounded-sm px-4 py-3" style={{ color: 'var(--error-fg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
@@ -369,32 +274,11 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Artist-image output */}
-            {result.korean !== undefined && <OutputCard title="한글" body={result.korean} copyLabel="한글" />}
-            {result.english !== undefined && <OutputCard title="English" body={result.english} copyLabel="EN" />}
+            {hasKR && <OutputCard title={hasEN ? '한글' : 'Caption'} body={result.korean!} copyLabel={hasEN ? '한글' : '캡션'} showCount={isImage} />}
+            {hasEN && <OutputCard title="English" body={result.english!} copyLabel="EN" showCount={isImage} />}
 
-            {/* Caption output */}
-            {result.caption !== undefined && <OutputCard title="Caption" body={result.caption} copyLabel="캡션" />}
-            {result.hashtags !== undefined && (
-              <div className="rounded-sm p-5 space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--fg-muted)' }}>Hashtags</span>
-                  <CopyButton text={result.hashtags} label="해시태그" />
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.hashtags.split(/\s+/).filter(Boolean).map((tag, i) => (
-                    <span key={i} className="text-xs px-2 py-1 rounded-sm" style={{ background: 'var(--tag-bg)', border: '1px solid var(--tag-border)', color: 'var(--tag-fg)' }}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Copy all */}
             <div className="flex justify-end">
-              <CopyButton
-                text={[result.korean, result.english, result.caption, result.hashtags].filter(Boolean).join('\n\n')}
-                label="전체"
-              />
+              <CopyButton text={[result.korean, result.english].filter((s) => s?.trim()).join('\n\n')} label="전체" />
             </div>
           </section>
         )}
