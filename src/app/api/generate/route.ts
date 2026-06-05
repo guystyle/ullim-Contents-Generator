@@ -24,7 +24,7 @@ export interface GenerateResponse {
 const BRAND_TONE: Record<Brand, string> = {
   ullim: `# Brand: ullim (울림) — main brand
 - Identity: "사운드로 도시를 감싸 안는, 가장 포근한 나이트라이프의 울림"
-- Slogan: 문턱은 낮게, 울림은 깊게 / Catchphrase: "Your Flow, Our Resonance."
+- Slogan: 문턱은 낮게, 울림은 깊게 / Catchphrase: "Your Tempo, Our Resonance."
 - Values: 포용성, 음악적 깊이(Deep House·Acid·Melodic), 감성적 연결, 도시적 따뜻함
 - Tone: 따뜻하고 포근, 여백 있는 단문, 절제된 세련미. 감각 어휘: 잔향, 파도, 온기, 공명, 몰입.`,
   dfz: `# Brand: DFZ (Duty Free Zone) — ullim sub-brand, bi-weekly residency at bar union, Itaewon
@@ -171,7 +171,7 @@ Come up. Let go.
 24:45 GUYSTYLE x Ideall (ullim) @guystyle b2b @id.all
 02:00 Adroit Joe @adroitjoe
 
-Your Flow, Our Resonance.
+Your Tempo, Our Resonance.
 ullim.`,
 }
 
@@ -187,7 +187,7 @@ function posterPrompt(req: GenerateRequest): string {
       : `# Mandatory elements (ullim)
 - A short themed title line at the very top (with a fitting emoji), derived from the event theme.
 - Closing must be exactly two lines:
-  Your Flow, Our Resonance.
+  Your Tempo, Our Resonance.
   ullim.`
 
   return [
