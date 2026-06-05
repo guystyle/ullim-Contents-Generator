@@ -69,10 +69,10 @@ function artistImagePrompt(req: GenerateRequest): string {
     req.input,
     ``,
     `# Requirements`,
-    `- Write in THIRD PERSON describing the artist. Do not address the reader.`,
+    `- Write in THIRD PERSON describing the artist. Do NOT mention the artist's name anywhere in the text.`,
     `- Keep only the essence; remove filler. Weave genres in naturally.`,
-    `- Korean: 약 70자 (한글 70자 내외).`,
-    `- English: 약 130자 (~130 chars).`,
+    `- Korean: STRICTLY 60~75자. Count carefully before outputting. If over 75자, trim. If under 60자, expand.`,
+    `- English: STRICTLY 120~140 characters (count spaces too). If over 140, trim. If under 120, expand.`,
     req.brand === 'dfz'
       ? `- DFZ: if an origin city is present, you may lead with it ("From [city].", "[city] 출신의").`
       : `- ullim: lead with feeling/concept, end on a warm note of connection.`,
