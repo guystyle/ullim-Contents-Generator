@@ -13,8 +13,9 @@ const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placehol
   {
     value: 'artist-caption',
     label: '아티스트 캡션',
-    desc: '바이오 → 캡션 본문',
-    placeholder: '아티스트 바이오그래피 원문을 붙여넣으세요. (캐러셀 포스트 본문용으로 정제됩니다)',
+    desc: '바이오 + 이벤트 정보 → 캡션',
+    placeholder:
+      '아티스트 바이오그래피 + 이벤트 정보를 함께 붙여넣으세요.\n\ne.g.\nESCBR — 전 세계 하우스/디스코를 탐험하는 큐레이터, 70~80s 아시아 바이닐 컬렉터, 대전·서울 기반...\n\nullim presents: DFZ (Duty Free Zone)\n2025.11.28 (금) @ BAR UNION (@unionseoul)\nESCBR @dj_escbr',
   },
   {
     value: 'poster-caption',
@@ -223,7 +224,7 @@ export default function Home() {
 
           {/* Input */}
           <div>
-            <InputLabel>{isImage || contentType === 'artist-caption' ? '아티스트 바이오그래피' : '이벤트 정보'}</InputLabel>
+            <InputLabel>{isImage ? '아티스트 바이오그래피' : contentType === 'artist-caption' ? '바이오 + 이벤트 정보' : '이벤트 정보'}</InputLabel>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

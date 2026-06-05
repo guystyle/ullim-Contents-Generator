@@ -55,16 +55,10 @@ const ARTIST_EXAMPLES: Record<Brand, string> = {
 [EN] From Aarhus to Seoul. Weaving hypnotic grooves and heavy bass, Lurkie moves the crowd with intuitive rhythms drawn from the room's energy.`,
 }
 
-function artistPrompt(req: GenerateRequest, isImage: boolean): string {
-  const limits = isImage
-    ? `- Korean: 약 70자 (한글 70자 내외).
-- English: 약 130자 (~130 chars).`
-    : `- Korean: 2~4문장의 정제된 소개 (캡션 본문용, 길이 여유 있게).
-- English: a polished 2~4 sentence introduction (caption body).`
-
+function artistImagePrompt(req: GenerateRequest): string {
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
-    `TASK: Take the artist's raw biography text below and REFINE it into a clean ${isImage ? 'carousel image card' : 'carousel post caption'} artist introduction.`,
+    `TASK: Take the artist's raw biography text below and REFINE it into a clean carousel image card artist introduction.`,
     BRAND_TONE[req.brand],
     SHARED_RULES,
     ``,
@@ -77,7 +71,8 @@ function artistPrompt(req: GenerateRequest, isImage: boolean): string {
     `# Requirements`,
     `- Write in THIRD PERSON describing the artist. Do not address the reader.`,
     `- Keep only the essence; remove filler. Weave genres in naturally.`,
-    limits,
+    `- Korean: 약 70자 (한글 70자 내외).`,
+    `- English: 약 130자 (~130 chars).`,
     req.brand === 'dfz'
       ? `- DFZ: if an origin city is present, you may lead with it ("From [city].", "[city] 출신의").`
       : `- ullim: lead with feeling/concept, end on a warm note of connection.`,
@@ -85,6 +80,56 @@ function artistPrompt(req: GenerateRequest, isImage: boolean): string {
     ``,
     `Respond ONLY as JSON, no markdown:`,
     `{ "korean": "...", "english": "..." }`,
+  ].join('\n')
+}
+
+/* ────────────────────────────────────────────────────────────
+   2) Artist carousel POST caption (fixed format + event info block)
+   ──────────────────────────────────────────────────────────── */
+
+const ARTIST_CAPTION_EXAMPLE = `ESCBR을 소개합니다.
+
+전 세계 하우스와 디스코 사운드를 탐험하며 플로어를 뜨겁게 달구는 큐레이터.
+그는 70~80년대 아시아 바이닐 컬렉터로서 고전적인 깊이와 현재의 에너지를 결합하는 독특한 음악적 정체성을 구축합니다.
+
+대전과 서울을 기반으로 활동하며 쌓아 올린 그의 깊고 서사적인 플로우에 몸을 맡기세요.
+
+ullim presents: DFZ (Duty Free Zone)
+🗓️ 2025. 11. 28. 금요일
+📍 BAR UNION @unionseoul
+👤 ESCBR @dj_escbr`
+
+function artistCaptionPrompt(req: GenerateRequest): string {
+  return [
+    `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
+    `TASK: Take the input below (artist biography + event info) and write an Instagram carousel POST caption introducing the artist, following the EXACT format shown.`,
+    BRAND_TONE[req.brand],
+    SHARED_RULES,
+    ``,
+    `# Format example (follow this structure EXACTLY)`,
+    ARTIST_CAPTION_EXAMPLE,
+    ``,
+    `# Strict format rules`,
+    `1. First line: "{아티스트명}을(를) 소개합니다." (choose 을/를 correctly by the name's final syllable).`,
+    `2. Blank line.`,
+    `3. Body: 2~3 sentences refining the artist's musical identity/style/background. Third person.`,
+    `4. Blank line.`,
+    `5. Exactly ONE closing sentence inviting the reader (e.g. "~에 몸을 맡기세요.").`,
+    `6. Blank line.`,
+    `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or party names. Keep @handles exactly. Format:`,
+    `   "ullim presents: {party name}"`,
+    `   🗓️ {date}`,
+    `   📍 {venue} {@handle}`,
+    `   👤 {artist} {@handle}`,
+    `   (omit any line whose info is missing in the input)`,
+    ``,
+    `# Input (biography + event info)`,
+    req.input,
+    ``,
+    `# Output`,
+    `Write the entire caption in Korean. Put it all in the "korean" field, leave "english" empty.`,
+    `Respond ONLY as JSON, no markdown:`,
+    `{ "korean": "...full caption...", "english": "" }`,
   ].join('\n')
 }
 
@@ -221,9 +266,9 @@ function posterPrompt(req: GenerateRequest): string {
 function buildPrompt(req: GenerateRequest): string {
   switch (req.contentType) {
     case 'artist-image':
-      return artistPrompt(req, true)
+      return artistImagePrompt(req)
     case 'artist-caption':
-      return artistPrompt(req, false)
+      return artistCaptionPrompt(req)
     case 'poster-caption':
     default:
       return posterPrompt(req)
