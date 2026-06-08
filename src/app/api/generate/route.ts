@@ -284,13 +284,18 @@ async function enforceLength(
   text: string,
   lang: 'ko' | 'en',
   min: number,
-  max: number
+  max: number,
+  brand: Brand
 ): Promise<string> {
+  const dryRule =
+    brand === 'dfz'
+      ? ' 종결어미는 반드시 "-한다 / -이다 / 명사형"으로 끝내고, "~합니다 / ~입니다 / ~하세요" 같은 경어체는 절대 쓰지 마.'
+      : ''
   let current = stripQuotes(text)
   for (let i = 0; i < 2 && current.length > max; i++) {
     const prompt =
       lang === 'ko'
-        ? `다음 아티스트 소개 문장을 의미와 따뜻한 톤은 유지하되 반드시 ${min}~${max}자 사이로 줄여줘. 아티스트 이름은 절대 넣지 마. 다른 설명 없이 줄인 문장만 출력해.\n\n현재 ${current.length}자:\n${current}`
+        ? `다음 아티스트 소개 문장을 의미와 톤은 유지하되 반드시 ${min}~${max}자 사이로 줄여줘. 아티스트 이름은 절대 넣지 마.${dryRule} 다른 설명 없이 줄인 문장만 출력해.\n\n현재 ${current.length}자:\n${current}`
         : `Rewrite this artist introduction to STRICTLY ${min}-${max} characters (currently ${current.length}). Keep the meaning and tone. Do not include the artist's name. Output only the rewritten sentence, nothing else.\n\n${current}`
     try {
       const r = await model.generateContent(prompt)
@@ -324,8 +329,8 @@ export async function POST(req: NextRequest) {
 
     // Hard-enforce length limits for the image card (model is unreliable on its own).
     if (body.contentType === 'artist-image') {
-      if (parsed.korean) parsed.korean = await enforceLength(model, parsed.korean, 'ko', 60, 75)
-      if (parsed.english) parsed.english = await enforceLength(model, parsed.english, 'en', 120, 140)
+      if (parsed.korean) parsed.korean = await enforceLength(model, parsed.korean, 'ko', 60, 75, body.brand)
+      if (parsed.english) parsed.english = await enforceLength(model, parsed.english, 'en', 120, 140, body.brand)
     }
 
     return NextResponse.json(parsed)
