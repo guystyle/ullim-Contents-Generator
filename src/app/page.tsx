@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import type { GenerateRequest, GenerateResponse, Brand, ContentType } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
@@ -30,30 +30,6 @@ const BRANDS: { value: Brand; label: string }[] = [
 ]
 
 /* ── UI atoms ── */
-
-function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label="테마 전환"
-      className="p-2 rounded-full border transition-all duration-200"
-      style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
-    >
-      {dark ? (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-      ) : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-      )}
-    </button>
-  )
-}
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
@@ -154,7 +130,6 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
 /* ── Page ── */
 
 export default function Home() {
-  const [dark, setDark] = useState(false)
   const [brand, setBrand] = useState<Brand>('ullim')
   const [contentType, setContentType] = useState<ContentType>('artist-image')
   const [input, setInput] = useState('')
@@ -170,14 +145,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
-
-  useEffect(() => {
-    if (localStorage.getItem('ullim-theme') === 'dark') setDark(true)
-  }, [])
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('ullim-theme', dark ? 'dark' : 'light')
-  }, [dark])
 
   const current = CONTENT_TYPES.find((t) => t.value === contentType)!
   const isImage = contentType === 'artist-image'
@@ -266,10 +233,9 @@ export default function Home() {
       <header className="px-6 py-5" style={{ borderBottom: '1px solid var(--border-muted)' }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-baseline gap-4">
-            <h1 className="text-xl font-light tracking-[0.2em] uppercase" style={{ color: 'var(--fg)' }}>ullim</h1>
+            <h1 className="text-3xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>ullim</h1>
             <span className="text-xs tracking-wider" style={{ color: 'var(--fg-muted)' }}>contents generator</span>
           </div>
-          <ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
         </div>
       </header>
 

@@ -1,17 +1,11 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 
 function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (localStorage.getItem('ullim-theme') === 'dark') {
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +37,7 @@ function LoginForm() {
     <main className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--bg)' }}>
       <form onSubmit={submit} className="w-full max-w-xs">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-light tracking-[0.2em] uppercase" style={{ color: 'var(--fg)' }}>ullim</h1>
+          <h1 className="text-4xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>ullim</h1>
           <p className="text-xs tracking-wider mt-1" style={{ color: 'var(--fg-muted)' }}>contents generator</p>
         </div>
 

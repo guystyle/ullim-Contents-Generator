@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.cdnfonts.com/css/jorick');
 
 @tailwind base;
 @tailwind components;
@@ -25,8 +26,9 @@
   --selection:    rgba(44,122,123,0.2);
 }
 
-/* ── Dark mode ── */
-.dark {
+/* ── Dark mode (follows system preference) ── */
+.dark,
+:root.dark {
   --bg:           #0f1318;
   --surface:      #161c22;
   --border:       #2C7A7B;
@@ -44,6 +46,28 @@
   --error-bg:     rgba(139,62,47,0.12);
   --error-border: rgba(139,62,47,0.3);
   --selection:    rgba(44,122,123,0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #0f1318;
+    --surface:      #161c22;
+    --border:       #2C7A7B;
+    --border-muted: #1e2a2a;
+    --fg:           #E8E0D0;
+    --fg-muted:     #6B7C8A;
+    --accent:       #2C7A7B;
+    --accent-hover: #3A9899;
+    --btn-bg:       #2C7A7B;
+    --btn-fg:       #F5F5DC;
+    --tag-bg:       rgba(44,122,123,0.12);
+    --tag-border:   rgba(44,122,123,0.3);
+    --tag-fg:       #C2B280;
+    --error-fg:     #D4846A;
+    --error-bg:     rgba(139,62,47,0.12);
+    --error-border: rgba(139,62,47,0.3);
+    --selection:    rgba(44,122,123,0.25);
+  }
 }
 
 * {
