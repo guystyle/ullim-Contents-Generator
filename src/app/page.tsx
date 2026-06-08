@@ -14,8 +14,7 @@ const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placehol
     value: 'artist-caption',
     label: '아티스트 캡션',
     desc: '바이오 + 이벤트 정보 → 캡션',
-    placeholder:
-      '아티스트 바이오그래피 + 이벤트 정보를 함께 붙여넣으세요.\n\ne.g.\nESCBR — 전 세계 하우스/디스코를 탐험하는 큐레이터, 70~80s 아시아 바이닐 컬렉터, 대전·서울 기반...\n\nullim presents: DFZ (Duty Free Zone)\n2025.11.28 (금) @ BAR UNION (@unionseoul)\nESCBR @dj_escbr',
+    placeholder: '',
   },
   {
     value: 'poster-caption',
@@ -134,6 +133,7 @@ export default function Home() {
   const [brand, setBrand] = useState<Brand>('ullim')
   const [contentType, setContentType] = useState<ContentType>('artist-image')
   const [input, setInput] = useState('')
+  const [eventInfo, setEventInfo] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -150,14 +150,23 @@ export default function Home() {
   const current = CONTENT_TYPES.find((t) => t.value === contentType)!
   const isImage = contentType === 'artist-image'
 
+  const isArtistCaption = contentType === 'artist-caption'
+
   const handleGenerate = useCallback(async () => {
     setError(null)
     if (!input.trim()) {
-      setError('내용을 입력해주세요.')
+      setError('아티스트 바이오그래피를 입력해주세요.')
+      return
+    }
+    if (isArtistCaption && !eventInfo.trim()) {
+      setError('이벤트 정보를 입력해주세요.')
       return
     }
     setLoading(true)
-    const body: GenerateRequest = { contentType, brand, input: input.trim() }
+    const combinedInput = isArtistCaption
+      ? `${input.trim()}\n\n${eventInfo.trim()}`
+      : input.trim()
+    const body: GenerateRequest = { contentType, brand, input: combinedInput }
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -172,7 +181,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [contentType, brand, input])
+  }, [contentType, brand, input, eventInfo, isArtistCaption])
 
   const hasKR = !!result?.korean?.trim()
   const hasEN = !!result?.english?.trim()
@@ -222,20 +231,48 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Input */}
-          <div>
-            <InputLabel>{isImage ? '아티스트 바이오그래피' : contentType === 'artist-caption' ? '바이오 + 이벤트 정보' : '이벤트 정보'}</InputLabel>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={current.placeholder}
-              rows={9}
-              className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
-            />
-          </div>
+          {/* Bio input — shared by artist-image & artist-caption */}
+          {(isImage || isArtistCaption) && (
+            <div>
+              <InputLabel>아티스트 바이오그래피</InputLabel>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={CONTENT_TYPES[0].placeholder}
+                rows={8}
+                className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
+              />
+              {isArtistCaption && (
+                <p className="text-[11px] mt-2" style={{ color: 'var(--fg-muted)' }}>
+                  ※ 1번(아티스트 이미지)에서 쓴 바이오를 그대로 사용해도 좋아요.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Event info — poster-caption uses this as the sole input; artist-caption adds it alongside bio */}
+          {(!isImage) && (
+            <div>
+              <InputLabel>이벤트 정보</InputLabel>
+              <textarea
+                value={isArtistCaption ? eventInfo : input}
+                onChange={(e) => (isArtistCaption ? setEventInfo(e.target.value) : setInput(e.target.value))}
+                placeholder={
+                  isArtistCaption
+                    ? 'e.g.\nullim presents: DFZ (Duty Free Zone)\n2025.11.28 (금) @ BAR UNION (@unionseoul)\nESCBR @dj_escbr'
+                    : current.placeholder
+                }
+                rows={isArtistCaption ? 4 : 9}
+                className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
+              />
+            </div>
+          )}
 
           {error && (
             <p className="text-xs rounded-xl px-4 py-3" style={{ color: 'var(--error-fg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
