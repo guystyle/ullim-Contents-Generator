@@ -8,7 +8,7 @@ export function middleware(req: NextRequest) {
   if (auth) {
     const [scheme, encoded] = auth.split(' ')
     if (scheme === 'Basic' && encoded) {
-      const [, pass] = Buffer.from(encoded, 'base64').toString().split(':')
+      const [, pass] = atob(encoded).split(':')
       if (pass === password) return NextResponse.next()
     }
   }
