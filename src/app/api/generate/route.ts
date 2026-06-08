@@ -275,6 +275,33 @@ function buildPrompt(req: GenerateRequest): string {
   }
 }
 
+const stripQuotes = (s: string) => s.trim().replace(/^["'`]+|["'`]+$/g, '').trim()
+
+// Re-compress an over-length field via a focused follow-up call. Tries up to 2 times.
+async function enforceLength(
+  model: ReturnType<InstanceType<typeof GoogleGenerativeAI>['getGenerativeModel']>,
+  text: string,
+  lang: 'ko' | 'en',
+  min: number,
+  max: number
+): Promise<string> {
+  let current = stripQuotes(text)
+  for (let i = 0; i < 2 && current.length > max; i++) {
+    const prompt =
+      lang === 'ko'
+        ? `다음 아티스트 소개 문장을 의미와 따뜻한 톤은 유지하되 반드시 ${min}~${max}자 사이로 줄여줘. 아티스트 이름은 절대 넣지 마. 다른 설명 없이 줄인 문장만 출력해.\n\n현재 ${current.length}자:\n${current}`
+        : `Rewrite this artist introduction to STRICTLY ${min}-${max} characters (currently ${current.length}). Keep the meaning and tone. Do not include the artist's name. Output only the rewritten sentence, nothing else.\n\n${current}`
+    try {
+      const r = await model.generateContent(prompt)
+      const next = stripQuotes(r.response.text())
+      if (next) current = next
+    } catch {
+      break
+    }
+  }
+  return current
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as GenerateRequest
@@ -293,6 +320,12 @@ export async function POST(req: NextRequest) {
     const text = result.response.text().trim()
     const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
     const parsed = JSON.parse(cleaned) as GenerateResponse
+
+    // Hard-enforce length limits for the image card (model is unreliable on its own).
+    if (body.contentType === 'artist-image') {
+      if (parsed.korean) parsed.korean = await enforceLength(model, parsed.korean, 'ko', 60, 75)
+      if (parsed.english) parsed.english = await enforceLength(model, parsed.english, 'en', 120, 140)
+    }
 
     return NextResponse.json(parsed)
   } catch (err) {

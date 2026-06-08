@@ -37,7 +37,7 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
     <button
       onClick={onToggle}
       aria-label="테마 전환"
-      className="p-2 rounded-sm border transition-all duration-200"
+      className="p-2 rounded-full border transition-all duration-200"
       style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
     >
       {dark ? (
@@ -66,7 +66,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-sm border transition-all duration-200"
+      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all duration-200"
       style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
     >
       {copied ? (
@@ -101,7 +101,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button
       onClick={onClick}
-      className="px-3 py-2.5 text-xs rounded-sm border transition-all duration-150"
+      className="px-4 py-2.5 text-xs rounded-full border transition-all duration-150"
       style={active ? {
         borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--surface)', fontWeight: 500,
       } : {
@@ -115,7 +115,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
 
 function OutputCard({ title, body, copyLabel, showCount }: { title: string; body: string; copyLabel: string; showCount?: boolean }) {
   return (
-    <div className="rounded-sm p-5 space-y-3" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
+    <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--fg-muted)' }}>
           {title}{showCount && <span style={{ color: 'var(--border)' }}> · {body.length}자</span>}
@@ -211,7 +211,7 @@ export default function Home() {
                   <button
                     key={t.value}
                     onClick={() => { setContentType(t.value); setResult(null) }}
-                    className="text-left px-3 py-3 rounded-sm border transition-all duration-150"
+                    className="text-left px-4 py-3 rounded-2xl border transition-all duration-150"
                     style={active ? { borderColor: 'var(--accent)', background: 'var(--surface)' } : { borderColor: 'var(--border-muted)', background: 'transparent' }}
                   >
                     <div className="text-xs font-medium" style={{ color: active ? 'var(--accent)' : 'var(--fg)' }}>{t.label}</div>
@@ -230,7 +230,7 @@ export default function Home() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={current.placeholder}
               rows={9}
-              className="w-full rounded-sm px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
+              className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
               style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
               onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
               onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
@@ -238,7 +238,7 @@ export default function Home() {
           </div>
 
           {error && (
-            <p className="text-xs rounded-sm px-4 py-3" style={{ color: 'var(--error-fg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
+            <p className="text-xs rounded-xl px-4 py-3" style={{ color: 'var(--error-fg)', background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
               {error}
             </p>
           )}
@@ -246,7 +246,7 @@ export default function Home() {
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className="w-full py-3.5 text-sm font-medium tracking-widest uppercase rounded-sm transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-3.5 text-sm font-medium tracking-widest uppercase rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
           >
             {loading ? (
