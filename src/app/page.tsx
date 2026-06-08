@@ -204,6 +204,15 @@ export default function Home() {
     return `${y}. ${mm}. ${dd}. (${WD[dt.getDay()]})`
   }
 
+  const handleDateInput = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8)
+    let out = digits.slice(0, 4)
+    if (digits.length > 4) out += '. ' + digits.slice(4, 6)
+    if (digits.length > 6) out += '. ' + digits.slice(6, 8)
+    if (digits.length === 8) out += '.'
+    setDate(out)
+  }
+
   const buildEventInfo = () => {
     const venue = [venueName.trim(), ig(venueIg)].filter(Boolean).join(' ')
     const dj = [djName.trim(), ig(djIg)].filter(Boolean).join(' ')
@@ -330,7 +339,7 @@ export default function Home() {
                 </div>
                 <div>
                   <FieldLabel>날짜</FieldLabel>
-                  <TextInput value={date} onChange={setDate} placeholder="e.g. 2025. 11. 28. 금요일" />
+                  <TextInput value={date} onChange={handleDateInput} placeholder="e.g. 20251128 → 2025. 11. 28." />
                 </div>
                 <div>
                   <FieldLabel>장소</FieldLabel>
