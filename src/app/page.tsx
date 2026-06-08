@@ -161,10 +161,11 @@ export default function Home() {
   // structured event-info form (artist-caption)
   const [round, setRound] = useState('')
   const [date, setDate] = useState('')
-  const [venueName, setVenueName] = useState('')
-  const [venueIg, setVenueIg] = useState('')
+  const [venueName, setVenueName] = useState('BAR UNION')
+  const [venueIg, setVenueIg] = useState('@unionseoul')
   const [djName, setDjName] = useState('')
   const [djIg, setDjIg] = useState('')
+  const [josa, setJosa] = useState<'을' | '를'>('을')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -189,12 +190,27 @@ export default function Home() {
     return t.startsWith('@') ? t : `@${t.replace(/^@/, '')}`
   }
 
+  // Normalize a free-text date to "YYYY. MM. DD. (요일)", computing the weekday in JS.
+  const WD = ['일', '월', '화', '수', '목', '금', '토']
+  const formatDate = (raw: string) => {
+    const t = raw.trim()
+    const m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/)
+    if (!m) return t
+    const [, y, mo, d] = m
+    const dt = new Date(Number(y), Number(mo) - 1, Number(d))
+    if (isNaN(dt.getTime())) return t
+    const mm = String(Number(mo)).padStart(2, '0')
+    const dd = String(Number(d)).padStart(2, '0')
+    return `${y}. ${mm}. ${dd}. (${WD[dt.getDay()]})`
+  }
+
   const buildEventInfo = () => {
     const venue = [venueName.trim(), ig(venueIg)].filter(Boolean).join(' ')
     const dj = [djName.trim(), ig(djIg)].filter(Boolean).join(' ')
     return [
+      `오프닝(첫 줄, 그대로 사용): ${djName.trim()}${josa} 소개합니다.`,
       round.trim() ? `회차: ${round.trim()}` : '',
-      date.trim() ? `날짜: ${date.trim()}` : '',
+      date.trim() ? `날짜: ${formatDate(date)}` : '',
       venue ? `장소: ${venue}` : '',
       dj ? `디제이: ${dj}` : '',
     ].filter(Boolean).join('\n')
@@ -231,7 +247,7 @@ export default function Home() {
       setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentType, brand, input, round, date, venueName, venueIg, djName, djIg, isArtistCaption])
+  }, [contentType, brand, input, round, date, venueName, venueIg, djName, djIg, josa, isArtistCaption])
 
   const hasKR = !!result?.korean?.trim()
   const hasEN = !!result?.english?.trim()
@@ -324,11 +340,31 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <FieldLabel>디제이</FieldLabel>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel>디제이</FieldLabel>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-[11px]" style={{ color: 'var(--border)' }}>조사</span>
+                      {(['을', '를'] as const).map((j) => (
+                        <button
+                          key={j}
+                          onClick={() => setJosa(j)}
+                          className="text-[11px] px-2 py-0.5 rounded-full border transition-all"
+                          style={josa === j
+                            ? { borderColor: 'var(--accent)', color: 'var(--accent)', fontWeight: 500 }
+                            : { borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
+                        >
+                          {j}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <TextInput value={djName} onChange={setDjName} placeholder="이름 (e.g. ESCBR)" />
                     <TextInput value={djIg} onChange={setDjIg} placeholder="인스타 (e.g. @dj_escbr)" />
                   </div>
+                  <p className="text-[11px] mt-1.5" style={{ color: 'var(--border)' }}>
+                    미리보기: <span style={{ color: 'var(--fg-muted)' }}>{djName.trim() || 'DJ'}{josa} 소개합니다.</span>
+                  </p>
                 </div>
               </div>
             </div>

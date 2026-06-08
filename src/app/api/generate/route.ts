@@ -111,7 +111,7 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     ARTIST_CAPTION_EXAMPLE,
     ``,
     `# Strict format rules`,
-    `1. First line: "{아티스트명}을(를) 소개합니다." (choose 을/를 correctly by the name's final syllable).`,
+    `1. First line: use the "오프닝(첫 줄, 그대로 사용):" value from the input VERBATIM as the opening line. Do not change the 조사 or wording.`,
     `2. Blank line.`,
     `3. Body: 2~3 sentences refining the artist's musical identity/style/background. Third person.`,
     `4. Blank line.`,
@@ -121,7 +121,7 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     req.brand === 'dfz'
       ? `   Header line: "ullim presents: DFZ (Duty Free Zone)" — if a 회차(round, e.g. vol.13) is given, append it: "ullim presents: DFZ (Duty Free Zone) vol.13".`
       : `   Header line: "ullim presents:" — if a 회차(round) is given, append it after.`,
-    `   🗓️ {회차 date}`,
+    `   🗓️ {date}  (use the 날짜 value exactly as given, keep the "(요일)" part)`,
     `   📍 {venue name} {@venue handle}`,
     `   👤 {dj name} {@dj handle}`,
     `   (omit any line whose info is missing in the input)`,
