@@ -126,6 +126,31 @@ function OutputCard({ title, body, copyLabel, showCount }: { title: string; body
   )
 }
 
+function TextInput({
+  value, onChange, placeholder,
+}: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-xl px-3.5 py-2.5 text-sm focus:outline-none transition-colors"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)' }}
+      onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+      onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
+    />
+  )
+}
+
+function FieldLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
+  return (
+    <label className="block text-[11px] mb-1.5" style={{ color: 'var(--fg-muted)' }}>
+      {children}{optional && <span style={{ color: 'var(--border)' }}> (선택)</span>}
+    </label>
+  )
+}
+
 /* ── Page ── */
 
 export default function Home() {
@@ -133,7 +158,13 @@ export default function Home() {
   const [brand, setBrand] = useState<Brand>('ullim')
   const [contentType, setContentType] = useState<ContentType>('artist-image')
   const [input, setInput] = useState('')
-  const [eventInfo, setEventInfo] = useState('')
+  // structured event-info form (artist-caption)
+  const [round, setRound] = useState('')
+  const [date, setDate] = useState('')
+  const [venueName, setVenueName] = useState('')
+  const [venueIg, setVenueIg] = useState('')
+  const [djName, setDjName] = useState('')
+  const [djIg, setDjIg] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -152,19 +183,37 @@ export default function Home() {
 
   const isArtistCaption = contentType === 'artist-caption'
 
+  const ig = (h: string) => {
+    const t = h.trim()
+    if (!t) return ''
+    return t.startsWith('@') ? t : `@${t.replace(/^@/, '')}`
+  }
+
+  const buildEventInfo = () => {
+    const venue = [venueName.trim(), ig(venueIg)].filter(Boolean).join(' ')
+    const dj = [djName.trim(), ig(djIg)].filter(Boolean).join(' ')
+    return [
+      round.trim() ? `회차: ${round.trim()}` : '',
+      date.trim() ? `날짜: ${date.trim()}` : '',
+      venue ? `장소: ${venue}` : '',
+      dj ? `디제이: ${dj}` : '',
+    ].filter(Boolean).join('\n')
+  }
+
   const handleGenerate = useCallback(async () => {
     setError(null)
     if (!input.trim()) {
       setError('아티스트 바이오그래피를 입력해주세요.')
       return
     }
-    if (isArtistCaption && !eventInfo.trim()) {
-      setError('이벤트 정보를 입력해주세요.')
+    const eventInfo = buildEventInfo()
+    if (isArtistCaption && (!date.trim() || !venueName.trim() || !djName.trim())) {
+      setError('날짜, 장소, 디제이는 필수로 입력해주세요.')
       return
     }
     setLoading(true)
     const combinedInput = isArtistCaption
-      ? `${input.trim()}\n\n${eventInfo.trim()}`
+      ? `${input.trim()}\n\n${eventInfo}`
       : input.trim()
     const body: GenerateRequest = { contentType, brand, input: combinedInput }
     try {
@@ -181,7 +230,8 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [contentType, brand, input, eventInfo, isArtistCaption])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentType, brand, input, round, date, venueName, venueIg, djName, djIg, isArtistCaption])
 
   const hasKR = !!result?.korean?.trim()
   const hasEN = !!result?.english?.trim()
@@ -253,19 +303,46 @@ export default function Home() {
             </div>
           )}
 
-          {/* Event info — poster-caption uses this as the sole input; artist-caption adds it alongside bio */}
-          {(!isImage) && (
+          {/* Event info — structured form (artist-caption) */}
+          {isArtistCaption && (
+            <div>
+              <InputLabel>이벤트 정보</InputLabel>
+              <div className="rounded-2xl p-4 space-y-3" style={{ border: '1px solid var(--border-muted)' }}>
+                <div>
+                  <FieldLabel optional>회차</FieldLabel>
+                  <TextInput value={round} onChange={setRound} placeholder="e.g. vol.13" />
+                </div>
+                <div>
+                  <FieldLabel>날짜</FieldLabel>
+                  <TextInput value={date} onChange={setDate} placeholder="e.g. 2025. 11. 28. 금요일" />
+                </div>
+                <div>
+                  <FieldLabel>장소</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextInput value={venueName} onChange={setVenueName} placeholder="이름 (e.g. BAR UNION)" />
+                    <TextInput value={venueIg} onChange={setVenueIg} placeholder="인스타 (e.g. @unionseoul)" />
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel>디제이</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextInput value={djName} onChange={setDjName} placeholder="이름 (e.g. ESCBR)" />
+                    <TextInput value={djIg} onChange={setDjIg} placeholder="인스타 (e.g. @dj_escbr)" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Event info — poster-caption free text */}
+          {contentType === 'poster-caption' && (
             <div>
               <InputLabel>이벤트 정보</InputLabel>
               <textarea
-                value={isArtistCaption ? eventInfo : input}
-                onChange={(e) => (isArtistCaption ? setEventInfo(e.target.value) : setInput(e.target.value))}
-                placeholder={
-                  isArtistCaption
-                    ? 'e.g.\nullim presents: DFZ (Duty Free Zone)\n2025.11.28 (금) @ BAR UNION (@unionseoul)\nESCBR @dj_escbr'
-                    : current.placeholder
-                }
-                rows={isArtistCaption ? 4 : 9}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={current.placeholder}
+                rows={9}
                 className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}

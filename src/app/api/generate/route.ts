@@ -117,11 +117,13 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     `4. Blank line.`,
     `5. Exactly ONE closing sentence inviting the reader (e.g. "~에 몸을 맡기세요.").`,
     `6. Blank line.`,
-    `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or party names. Keep @handles exactly. Format:`,
-    `   "ullim presents: {party name}"`,
-    `   🗓️ {date}`,
-    `   📍 {venue} {@handle}`,
-    `   👤 {artist} {@handle}`,
+    `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or names. Keep @handles exactly as given. Format:`,
+    req.brand === 'dfz'
+      ? `   Header line: "ullim presents: DFZ (Duty Free Zone)" — if a 회차(round, e.g. vol.13) is given, append it: "ullim presents: DFZ (Duty Free Zone) vol.13".`
+      : `   Header line: "ullim presents:" — if a 회차(round) is given, append it after.`,
+    `   🗓️ {회차 date}`,
+    `   📍 {venue name} {@venue handle}`,
+    `   👤 {dj name} {@dj handle}`,
     `   (omit any line whose info is missing in the input)`,
     ``,
     `# Input (biography + event info)`,
