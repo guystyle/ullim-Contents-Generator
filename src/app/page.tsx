@@ -191,7 +191,7 @@ export default function Home() {
   }
 
   // Normalize a free-text date to "YYYY. MM. DD. (요일)", computing the weekday in JS.
-  const WD = ['일', '월', '화', '수', '목', '금', '토']
+  const WD = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
   const formatDate = (raw: string) => {
     const t = raw.trim()
     const m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/)
@@ -201,7 +201,7 @@ export default function Home() {
     if (isNaN(dt.getTime())) return t
     const mm = String(Number(mo)).padStart(2, '0')
     const dd = String(Number(d)).padStart(2, '0')
-    return `${y}. ${mm}. ${dd}. (${WD[dt.getDay()]})`
+    return `${y}. ${mm}. ${dd}. ${WD[dt.getDay()]}`
   }
 
   const handleDateInput = (raw: string) => {
