@@ -119,7 +119,7 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     `# Strict format rules`,
     `1. First line: use the "오프닝(첫 줄, 그대로 사용):" value from the input VERBATIM as the opening line. Do not change the 조사 or wording.`,
     `2. Blank line.`,
-    `3. Body: 2~3 sentences refining the artist's musical identity/style/background. Third person.`,
+    `3. Body: 2~3 sentences. Do NOT copy the input biography sentences verbatim — REWRITE them in the brand's own voice. Extract only the essence (genre, identity, background) and restructure into fresh sentences with varied phrasing and rhythm. Keep all facts accurate; never invent new facts. Third person.`,
     `4. Blank line.`,
     `5. Exactly ONE closing sentence inviting the reader (e.g. "~에 몸을 맡기세요.").`,
     `6. Blank line.`,
