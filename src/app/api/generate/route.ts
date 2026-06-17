@@ -104,7 +104,13 @@ function artistCaptionPrompt(req: GenerateRequest): string {
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
     `TASK: Take the input below (artist biography + event info) and write an Instagram carousel POST caption introducing the artist, following the EXACT format shown.`,
-    BRAND_TONE[req.brand],
+    req.brand === 'dfz'
+      ? `# Brand: DFZ (Duty Free Zone) — ullim sub-brand
+- Catchphrase: "No Duty, Only Flow." / "Find Your Flow, Find Your Frequency."
+- Concept: 일상의 의무·경계를 내려놓는 해방의 공간. 국적·언어를 넘는 교류 허브. 도시적·미니멀한 'Frequency(주파수/파동)' 무드.
+- Music: narrative House, Melodic Techno, Nu-Disco, Deep House, Acid.
+- Tone: 도시적·에너지 중심. 어둠, 그루브, 주파수, 흐름(flow). 한국어는 "~합니다 / ~입니다 / ~보세요" 같은 정중한 어미를 자연스럽게 사용한다.`
+      : BRAND_TONE[req.brand],
     SHARED_RULES,
     ``,
     `# Format example (follow this structure EXACTLY)`,
