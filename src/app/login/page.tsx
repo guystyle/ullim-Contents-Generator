@@ -37,8 +37,8 @@ function LoginForm() {
     <main className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--bg)' }}>
       <form onSubmit={submit} className="w-full max-w-xs">
         <div className="text-center mb-8">
-          <h1 className="text-4xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>ullim</h1>
-          <p className="text-xs tracking-wider mt-1" style={{ color: 'var(--fg-muted)' }}>contents generator</p>
+          <h1 className="text-4xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>Resounder</h1>
+          <p className="text-xs tracking-wider mt-1" style={{ color: 'var(--fg-muted)' }}>by ullim</p>
         </div>
 
         <label className="block text-[11px] mb-1.5" style={{ color: 'var(--fg-muted)' }}>비밀번호</label>

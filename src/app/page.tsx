@@ -233,8 +233,8 @@ export default function Home() {
       <header className="px-6 py-5" style={{ borderBottom: '1px solid var(--border-muted)' }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-baseline gap-4">
-            <h1 className="text-3xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>ullim</h1>
-            <span className="text-xs tracking-wider" style={{ color: 'var(--fg-muted)' }}>contents generator</span>
+            <h1 className="text-3xl tracking-[0.1em]" style={{ color: 'var(--fg)', fontFamily: "'Jorick', serif" }}>Resounder</h1>
+            <span className="text-xs tracking-wider" style={{ color: 'var(--fg-muted)' }}>by ullim</span>
           </div>
         </div>
       </header>
