@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { GenerateRequest, GenerateResponse, Brand, ContentType } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
@@ -145,6 +145,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-brand', brand)
+    return () => document.documentElement.removeAttribute('data-brand')
+  }, [brand])
 
   const current = CONTENT_TYPES.find((t) => t.value === contentType)!
   const isImage = contentType === 'artist-image'
