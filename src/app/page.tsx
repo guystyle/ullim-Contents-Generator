@@ -411,7 +411,7 @@ export default function Home() {
       </main>
 
       <footer className="max-w-2xl mx-auto px-6 py-8 mt-10" style={{ borderTop: '1px solid var(--border-muted)' }}>
-        <p className="text-xs tracking-wider" style={{ color: 'var(--border-muted)' }}>ullim — sound that embraces the city</p>
+        <p className="text-xs tracking-wider" style={{ color: 'var(--border-muted)' }}>Resounder v1.0.0 &ldquo;Obsidian&rdquo;</p>
       </footer>
     </div>
   )
