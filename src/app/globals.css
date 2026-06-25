@@ -70,7 +70,7 @@
   }
 }
 
-/* ── DFZ brand — Cool Concrete (light) ── */
+/* ── DFZ brand — Monotone Concrete (light) ── */
 :root[data-brand="dfz"] {
   --bg:           #EAEAEA;
   --surface:      #F8F8F8;
@@ -78,20 +78,20 @@
   --border-muted: #D2D4D7;
   --fg:           #343A40;
   --fg-muted:     #A5A9AE;
-  --accent:       #8C5D4B;
-  --accent-hover: #74493A;
+  --accent:       #343A40;
+  --accent-hover: #545A61;
   --btn-bg:       #343A40;
   --btn-fg:       #F8F8F8;
-  --tag-bg:       rgba(140,93,75,0.10);
-  --tag-border:   rgba(140,93,75,0.30);
+  --tag-bg:       rgba(52,58,64,0.06);
+  --tag-border:   rgba(52,58,64,0.20);
   --tag-fg:       #343A40;
   --error-fg:     #8C3D2F;
   --error-bg:     rgba(140,61,47,0.08);
   --error-border: rgba(140,61,47,0.30);
-  --selection:    rgba(140,93,75,0.20);
+  --selection:    rgba(52,58,64,0.15);
 }
 
-/* ── DFZ brand — Concrete (dark) ── */
+/* ── DFZ brand — Monotone Concrete (dark) ── */
 :root[data-brand="dfz"].dark {
   --bg:           #1E2023;
   --surface:      #26292D;
@@ -99,17 +99,17 @@
   --border-muted: #2A2D31;
   --fg:           #EAEAEA;
   --fg-muted:     #A5A9AE;
-  --accent:       #B07A66;
-  --accent-hover: #C68E79;
-  --btn-bg:       #8C5D4B;
-  --btn-fg:       #F8F8F8;
-  --tag-bg:       rgba(176,122,102,0.15);
-  --tag-border:   rgba(176,122,102,0.30);
+  --accent:       #F8F8F8;
+  --accent-hover: #D2D4D7;
+  --btn-bg:       #EAEAEA;
+  --btn-fg:       #1E2023;
+  --tag-bg:       rgba(234,234,234,0.08);
+  --tag-border:   rgba(234,234,234,0.22);
   --tag-fg:       #EAEAEA;
   --error-fg:     #D4846A;
   --error-bg:     rgba(140,61,47,0.12);
   --error-border: rgba(140,61,47,0.30);
-  --selection:    rgba(176,122,102,0.25);
+  --selection:    rgba(234,234,234,0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -120,17 +120,17 @@
     --border-muted: #2A2D31;
     --fg:           #EAEAEA;
     --fg-muted:     #A5A9AE;
-    --accent:       #B07A66;
-    --accent-hover: #C68E79;
-    --btn-bg:       #8C5D4B;
-    --btn-fg:       #F8F8F8;
-    --tag-bg:       rgba(176,122,102,0.15);
-    --tag-border:   rgba(176,122,102,0.30);
+    --accent:       #F8F8F8;
+    --accent-hover: #D2D4D7;
+    --btn-bg:       #EAEAEA;
+    --btn-fg:       #1E2023;
+    --tag-bg:       rgba(234,234,234,0.08);
+    --tag-border:   rgba(234,234,234,0.22);
     --tag-fg:       #EAEAEA;
     --error-fg:     #D4846A;
     --error-bg:     rgba(140,61,47,0.12);
     --error-border: rgba(140,61,47,0.30);
-    --selection:    rgba(176,122,102,0.25);
+    --selection:    rgba(234,234,234,0.16);
   }
 }
 
