@@ -333,7 +333,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: contentType, brand, input' }, { status: 400 })
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' })
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3.1-flash-lite',
+      // Low temperature keeps the brand tone consistent across runs.
+      generationConfig: { temperature: 0.35 },
+    })
     const prompt = buildPrompt(body)
 
     const result = await model.generateContent(prompt)
