@@ -15,6 +15,8 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   // Let the login page and its API through, otherwise there's no way to sign in.
   if (pathname === '/login' || pathname === '/api/login') return NextResponse.next()
+  // Cron endpoints authenticate with CRON_SECRET instead of the site cookie.
+  if (pathname.startsWith('/api/cron/')) return NextResponse.next()
 
   const token = await sha256(password)
   const cookie = req.cookies.get('site_auth')?.value
