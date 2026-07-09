@@ -36,10 +36,77 @@ const BRAND_TONE: Record<Brand, string> = {
 - 문체(중요): 한국어는 건조하고 단정적인 평서체를 사용한다. 종결어미는 "-한다 / -이다 / 명사형"으로 끝낸다. "~합니다 / ~입니다 / ~하세요" 같은 정중체·경어체를 쓰지 않는다. (예: "에너지를 직조한다", "플로어를 움직인다", "루이빌 출신의 DJ/프로듀서.")`,
 }
 
-// Real published captions collected from Instagram (scripts/fetch-captions.mjs).
-// When present, they are the strongest tone anchor we have.
-function realExamples(brand: Brand, kind: 'artistCaptions' | 'posterCaptions'): string {
-  const list = instaExamples[brand]?.[kind] ?? []
+/* ────────────────────────────────────────────────────────────
+   Real published captions — fetched live from the Instagram API
+   (INSTAGRAM_ACCESS_TOKEN), cached in memory, with the committed
+   src/data/insta-examples.json as fallback.
+   ──────────────────────────────────────────────────────────── */
+
+interface ExampleBuckets {
+  artistCaptions: string[]
+  posterCaptions: string[]
+}
+type RealExamples = Record<Brand, ExampleBuckets>
+
+const FALLBACK_EXAMPLES: RealExamples = {
+  ullim: instaExamples.ullim,
+  dfz: instaExamples.dfz,
+}
+
+const MAX_PER_BUCKET = 4
+const IG_CACHE_TTL = 1000 * 60 * 60 * 12 // 12h
+let igCache: { data: RealExamples; at: number } | null = null
+
+const isDfzCaption = (t: string) => /dfz|duty\s*free\s*zone/i.test(t)
+const isArtistCaption = (t: string) => /(을|를)\s*소개합니다/.test(t)
+const isPosterCaption = (t: string) => /english below/i.test(t) || /presents\s*:/i.test(t)
+
+async function fetchRealExamples(): Promise<RealExamples> {
+  const token = process.env.INSTAGRAM_ACCESS_TOKEN
+  if (!token) return FALLBACK_EXAMPLES
+  if (igCache && Date.now() - igCache.at < IG_CACHE_TTL) return igCache.data
+
+  try {
+    const media: { caption?: string; timestamp: string }[] = []
+    let url: string | null =
+      `https://graph.instagram.com/v25.0/me/media?fields=caption,timestamp&limit=100&access_token=${token}`
+    while (url) {
+      const res: Response = await fetch(url)
+      if (!res.ok) throw new Error(`Instagram API ${res.status}`)
+      const json: { data?: { caption?: string; timestamp: string }[]; paging?: { next?: string } } =
+        await res.json()
+      media.push(...(json.data ?? []))
+      url = json.paging?.next ?? null
+    }
+
+    const buckets: Record<Brand, { artistCaptions: { c: string; t: string }[]; posterCaptions: { c: string; t: string }[] }> = {
+      ullim: { artistCaptions: [], posterCaptions: [] },
+      dfz: { artistCaptions: [], posterCaptions: [] },
+    }
+    for (const m of media) {
+      const caption = m.caption?.trim()
+      if (!caption) continue
+      const brand: Brand = isDfzCaption(caption) ? 'dfz' : 'ullim'
+      if (isArtistCaption(caption)) buckets[brand].artistCaptions.push({ c: caption, t: m.timestamp })
+      else if (isPosterCaption(caption)) buckets[brand].posterCaptions.push({ c: caption, t: m.timestamp })
+    }
+    const trim = (arr: { c: string; t: string }[]) =>
+      arr.sort((a, b) => (a.t < b.t ? 1 : -1)).slice(0, MAX_PER_BUCKET).map((x) => x.c)
+
+    const data: RealExamples = {
+      ullim: { artistCaptions: trim(buckets.ullim.artistCaptions), posterCaptions: trim(buckets.ullim.posterCaptions) },
+      dfz: { artistCaptions: trim(buckets.dfz.artistCaptions), posterCaptions: trim(buckets.dfz.posterCaptions) },
+    }
+    igCache = { data, at: Date.now() }
+    return data
+  } catch {
+    // Keep serving the last good fetch (or the committed fallback) on any failure.
+    return igCache?.data ?? FALLBACK_EXAMPLES
+  }
+}
+
+function realExamples(examples: RealExamples, brand: Brand, kind: keyof ExampleBuckets): string {
+  const list = examples[brand]?.[kind] ?? []
   if (!list.length) return ''
   return [
     ``,
@@ -113,7 +180,7 @@ ullim presents: DFZ (Duty Free Zone)
 📍 BAR UNION @unionseoul
 👤 ESCBR @dj_escbr`
 
-function artistCaptionPrompt(req: GenerateRequest): string {
+function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): string {
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
     `TASK: Take the input below (artist biography + event info) and write an Instagram carousel POST caption introducing the artist, following the EXACT format shown.`,
@@ -128,7 +195,7 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     ``,
     `# Format example (follow this structure EXACTLY)`,
     ARTIST_CAPTION_EXAMPLE,
-    realExamples(req.brand, 'artistCaptions'),
+    realExamples(examples, req.brand, 'artistCaptions'),
     ``,
     `# Strict format rules`,
     `1. First line: use the "오프닝(첫 줄, 그대로 사용):" value from the input VERBATIM as the opening line. Do not change the 조사 or wording.`,
@@ -243,7 +310,7 @@ Your Tempo, Our Resonance.
 ullim.`,
 }
 
-function posterPrompt(req: GenerateRequest): string {
+function posterPrompt(req: GenerateRequest, examples: RealExamples): string {
   const mandatory =
     req.brand === 'dfz'
       ? `# Mandatory elements (DFZ)
@@ -271,7 +338,7 @@ function posterPrompt(req: GenerateRequest): string {
     ``,
     `# Reference example (follow this exact structure, tone, and bilingual layout)`,
     POSTER_EXAMPLE[req.brand],
-    realExamples(req.brand, 'posterCaptions'),
+    realExamples(examples, req.brand, 'posterCaptions'),
     ``,
     mandatory,
     ``,
@@ -293,15 +360,15 @@ function posterPrompt(req: GenerateRequest): string {
   ].join('\n')
 }
 
-function buildPrompt(req: GenerateRequest): string {
+function buildPrompt(req: GenerateRequest, examples: RealExamples): string {
   switch (req.contentType) {
     case 'artist-image':
       return artistImagePrompt(req)
     case 'artist-caption':
-      return artistCaptionPrompt(req)
+      return artistCaptionPrompt(req, examples)
     case 'poster-caption':
     default:
-      return posterPrompt(req)
+      return posterPrompt(req, examples)
   }
 }
 
@@ -353,7 +420,8 @@ export async function POST(req: NextRequest) {
       // Low temperature keeps the brand tone consistent across runs.
       generationConfig: { temperature: 0.35 },
     })
-    const prompt = buildPrompt(body)
+    const examples = await fetchRealExamples()
+    const prompt = buildPrompt(body, examples)
 
     const result = await model.generateContent(prompt)
     const text = result.response.text().trim()
