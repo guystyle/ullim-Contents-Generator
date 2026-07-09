@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import instaExamples from '@/data/insta-examples.json'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
@@ -33,6 +34,18 @@ const BRAND_TONE: Record<Brand, string> = {
 - Music: narrative House, Melodic Techno, Nu-Disco, Deep House, Acid.
 - Tone: ullim의 따뜻함을 공유하되 더 도시적·날것·에너지 중심. 어둠, 그루브, 주파수, 흐름(flow).
 - 문체(중요): 한국어는 건조하고 단정적인 평서체를 사용한다. 종결어미는 "-한다 / -이다 / 명사형"으로 끝낸다. "~합니다 / ~입니다 / ~하세요" 같은 정중체·경어체를 쓰지 않는다. (예: "에너지를 직조한다", "플로어를 움직인다", "루이빌 출신의 DJ/프로듀서.")`,
+}
+
+// Real published captions collected from Instagram (scripts/fetch-captions.mjs).
+// When present, they are the strongest tone anchor we have.
+function realExamples(brand: Brand, kind: 'artistCaptions' | 'posterCaptions'): string {
+  const list = instaExamples[brand]?.[kind] ?? []
+  if (!list.length) return ''
+  return [
+    ``,
+    `# Real published captions (these are ACTUAL posts — match their tone, rhythm and vocabulary exactly)`,
+    list.map((c: string, i: number) => `--- example ${i + 1} ---\n${c}`).join('\n\n'),
+  ].join('\n')
 }
 
 const SHARED_RULES = `# Universal rules
@@ -115,6 +128,7 @@ function artistCaptionPrompt(req: GenerateRequest): string {
     ``,
     `# Format example (follow this structure EXACTLY)`,
     ARTIST_CAPTION_EXAMPLE,
+    realExamples(req.brand, 'artistCaptions'),
     ``,
     `# Strict format rules`,
     `1. First line: use the "오프닝(첫 줄, 그대로 사용):" value from the input VERBATIM as the opening line. Do not change the 조사 or wording.`,
@@ -257,6 +271,7 @@ function posterPrompt(req: GenerateRequest): string {
     ``,
     `# Reference example (follow this exact structure, tone, and bilingual layout)`,
     POSTER_EXAMPLE[req.brand],
+    realExamples(req.brand, 'posterCaptions'),
     ``,
     mandatory,
     ``,
