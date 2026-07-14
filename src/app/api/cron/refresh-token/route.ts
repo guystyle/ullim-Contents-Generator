@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server'
  * Sends an alert email via Resend only when something needs human action.
  */
 
+// Must run at request time, every time — never statically prerendered.
+export const dynamic = 'force-dynamic'
+
 const ALERT_EMAIL = process.env.ALERT_EMAIL || 'guystyle@gmail.com'
 
 async function sendAlert(subject: string, body: string): Promise<boolean> {

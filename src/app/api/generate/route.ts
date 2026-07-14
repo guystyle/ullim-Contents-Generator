@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import instaExamples from '@/data/insta-examples.json'
+import { fetchRealExamples, realExamples, type RealExamples } from '@/lib/insta-examples'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
@@ -103,85 +103,6 @@ const SELF_CHECK = `# 출력 전 자가 점검 (조용히 수행)
 3. 포맷 규칙(구조·글자수·필수 요소)을 지켰는가?
 위반이 있으면 고친 뒤에만 출력하라.`
 
-/* ────────────────────────────────────────────────────────────
-   Real published captions — fetched live from the Instagram API
-   (INSTAGRAM_ACCESS_TOKEN), cached in memory, with the committed
-   src/data/insta-examples.json as fallback.
-   ──────────────────────────────────────────────────────────── */
-
-interface ExampleBuckets {
-  artistCaptions: string[]
-  posterCaptions: string[]
-}
-type RealExamples = Record<Brand, ExampleBuckets>
-
-const FALLBACK_EXAMPLES: RealExamples = {
-  ullim: instaExamples.ullim,
-  dfz: instaExamples.dfz,
-}
-
-const MAX_PER_BUCKET = 4
-const IG_CACHE_TTL = 1000 * 60 * 60 * 12 // 12h
-let igCache: { data: RealExamples; at: number } | null = null
-
-const isDfzCaption = (t: string) => /dfz|duty\s*free\s*zone/i.test(t)
-const isArtistCaption = (t: string) => /(을|를)\s*소개합니다/.test(t)
-const isPosterCaption = (t: string) => /english below/i.test(t) || /presents\s*:/i.test(t)
-
-async function fetchRealExamples(): Promise<RealExamples> {
-  const token = process.env.INSTAGRAM_ACCESS_TOKEN
-  if (!token) return FALLBACK_EXAMPLES
-  if (igCache && Date.now() - igCache.at < IG_CACHE_TTL) return igCache.data
-
-  try {
-    const media: { caption?: string; timestamp: string }[] = []
-    let url: string | null =
-      `https://graph.instagram.com/v25.0/me/media?fields=caption,timestamp&limit=100&access_token=${token}`
-    while (url) {
-      const res: Response = await fetch(url)
-      if (!res.ok) throw new Error(`Instagram API ${res.status}`)
-      const json: { data?: { caption?: string; timestamp: string }[]; paging?: { next?: string } } =
-        await res.json()
-      media.push(...(json.data ?? []))
-      url = json.paging?.next ?? null
-    }
-
-    const buckets: Record<Brand, { artistCaptions: { c: string; t: string }[]; posterCaptions: { c: string; t: string }[] }> = {
-      ullim: { artistCaptions: [], posterCaptions: [] },
-      dfz: { artistCaptions: [], posterCaptions: [] },
-    }
-    for (const m of media) {
-      const caption = m.caption?.trim()
-      if (!caption) continue
-      const brand: Brand = isDfzCaption(caption) ? 'dfz' : 'ullim'
-      if (isArtistCaption(caption)) buckets[brand].artistCaptions.push({ c: caption, t: m.timestamp })
-      else if (isPosterCaption(caption)) buckets[brand].posterCaptions.push({ c: caption, t: m.timestamp })
-    }
-    const trim = (arr: { c: string; t: string }[]) =>
-      arr.sort((a, b) => (a.t < b.t ? 1 : -1)).slice(0, MAX_PER_BUCKET).map((x) => x.c)
-
-    const data: RealExamples = {
-      ullim: { artistCaptions: trim(buckets.ullim.artistCaptions), posterCaptions: trim(buckets.ullim.posterCaptions) },
-      dfz: { artistCaptions: trim(buckets.dfz.artistCaptions), posterCaptions: trim(buckets.dfz.posterCaptions) },
-    }
-    igCache = { data, at: Date.now() }
-    return data
-  } catch {
-    // Keep serving the last good fetch (or the committed fallback) on any failure.
-    return igCache?.data ?? FALLBACK_EXAMPLES
-  }
-}
-
-function realExamples(examples: RealExamples, brand: Brand, kind: keyof ExampleBuckets): string {
-  const list = examples[brand]?.[kind] ?? []
-  if (!list.length) return ''
-  return [
-    ``,
-    `# Real published captions (these are ACTUAL posts — match their tone, rhythm and vocabulary exactly)`,
-    list.map((c: string, i: number) => `--- example ${i + 1} ---\n${c}`).join('\n\n'),
-  ].join('\n')
-}
-
 const SHARED_RULES = `# Universal rules
 - 과장 마케팅 금지: "최고의", "핫한", "무조건", "매진 임박", "예매 서두르세요" 등.
 - 자극적인 클럽 전단지 톤·밈·유행어 금지. 정돈되고 감각적인 호흡 유지.`
@@ -218,6 +139,8 @@ function artistImagePrompt(req: GenerateRequest): string {
     req.input,
     ``,
     `# Requirements`,
+    `- GROUND EVERYTHING IN THE BIOGRAPHY: every fact, genre, place, and image must come from (or be directly implied by) the input bio. Do not add scenes, moods, or claims that have no basis in the bio. The brand tone decides HOW you write; the biography decides WHAT you write.`,
+    `- Brand vocabulary (잔향/온기/그루브/주파수 등) may only be used where it genuinely fits what the bio describes — never force it in.`,
     `- Write in THIRD PERSON describing the artist. Do NOT mention the artist's name anywhere in the text.`,
     `- Keep only the essence; remove filler. Weave genres in naturally.`,
     `- Korean: STRICTLY 60~75자. Count carefully before outputting. If over 75자, trim. If under 60자, expand.`,
