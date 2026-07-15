@@ -20,5 +20,6 @@ export async function GET() {
         posterCaptions: examples.dfz.posterCaptions.length,
       },
     },
+    examples,
   })
 }

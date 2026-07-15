@@ -127,6 +127,96 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
   )
 }
 
+/* ── Few-shot training data panel ── */
+
+interface InstaStatus {
+  tokenConfigured: boolean
+  lastSource: string
+  lastError: string | null
+  lastSuccessfulFetchAt: string | null
+  examples: Record<Brand, { artistCaptions: string[]; posterCaptions: string[] }>
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  live: '인스타그램 실시간',
+  cache: '캐시 (12시간 이내)',
+  fallback: '내장 예시 (인스타 연결 안 됨)',
+}
+
+function ExamplesPanel() {
+  const [open, setOpen] = useState(false)
+  const [status, setStatus] = useState<InstaStatus | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const toggle = async () => {
+    const next = !open
+    setOpen(next)
+    if (next && !status) {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/insta-status')
+        if (res.ok) setStatus(await res.json())
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <button
+        onClick={toggle}
+        className="text-xs tracking-wider underline underline-offset-4 decoration-dotted"
+        style={{ color: 'var(--fg-muted)' }}
+      >
+        {open ? '학습 데이터 접기' : '학습 데이터 보기'}
+      </button>
+
+      {open && (
+        <div className="mt-4 space-y-4">
+          {loading && <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>불러오는 중...</p>}
+          {status && (
+            <>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+                출처: {SOURCE_LABEL[status.lastSource] ?? status.lastSource}
+                {status.lastSuccessfulFetchAt && ` · 마지막 수집 ${new Date(status.lastSuccessfulFetchAt).toLocaleString('ko-KR')}`}
+                {status.lastError && (
+                  <span style={{ color: 'var(--error-fg)' }}> · {status.lastError}</span>
+                )}
+              </p>
+              {(['ullim', 'dfz'] as const).map((b) =>
+                (
+                  [
+                    ['artistCaptions', '아티스트 캡션'],
+                    ['posterCaptions', '포스터 캡션'],
+                  ] as const
+                ).map(([kind, label]) => {
+                  const list = status.examples[b][kind]
+                  if (!list.length) return null
+                  return (
+                    <details key={`${b}-${kind}`} className="rounded-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
+                      <summary className="cursor-pointer px-5 py-3 text-xs uppercase tracking-widest" style={{ color: 'var(--fg-muted)' }}>
+                        {b === 'ullim' ? 'ullim' : 'DFZ'} · {label} ({list.length})
+                      </summary>
+                      <div className="px-5 pb-4 space-y-4">
+                        {list.map((c, i) => (
+                          <p key={i} className="text-xs whitespace-pre-line pt-3" style={{ color: 'var(--fg)', lineHeight: '1.7', borderTop: '1px solid var(--border-muted)' }}>
+                            {c}
+                          </p>
+                        ))}
+                      </div>
+                    </details>
+                  )
+                })
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Page ── */
 
 export default function Home() {
@@ -417,6 +507,7 @@ export default function Home() {
 
       <footer className="max-w-2xl mx-auto px-6 py-8 mt-10" style={{ borderTop: '1px solid var(--border-muted)' }}>
         <p className="text-xs tracking-wider" style={{ color: 'var(--border-muted)' }}>Resounder v1.0.0 &ldquo;Obsidian&rdquo;</p>
+        <ExamplesPanel />
       </footer>
     </div>
   )
