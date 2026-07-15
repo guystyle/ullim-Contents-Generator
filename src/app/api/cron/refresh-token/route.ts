@@ -65,19 +65,25 @@ export async function GET(req: NextRequest) {
     const days = Math.round((json.expires_in ?? 0) / 86400)
 
     // If Meta hands back a DIFFERENT token string, the env token's own clock
-    // keeps ticking and auto-refresh can't help — the user must swap it.
+    // keeps ticking and auto-refresh can't help — the user must swap it before
+    // the env token's own 60-day expiry. The cron runs daily, so remind only
+    // on Mondays to avoid flooding the inbox.
     if (json.access_token && json.access_token !== token) {
-      await sendAlert(
-        '[Resounder] 인스타그램 토큰 수동 교체 필요',
-        [
-          '토큰 갱신 API가 기존과 다른 새 토큰을 반환했습니다.',
-          '환경변수의 기존 토큰은 원래 만료일에 만료되므로, 그 전에 교체가 필요합니다.',
-          '',
-          '조치 방법:',
-          '1. Meta 앱 대시보드에서 "Generate token"으로 새 토큰 발급',
-          '2. Vercel → INSTAGRAM_ACCESS_TOKEN 교체 후 Redeploy',
-        ].join('\n')
-      )
+      if (new Date().getDay() === 1) {
+        await sendAlert(
+          '[Resounder] 인스타그램 토큰 주기 교체 리마인더 (주 1회)',
+          [
+            '토큰 갱신 API가 매번 새 토큰을 반환하고 있어, 환경변수의 토큰은 발급일로부터 60일이 지나면 만료됩니다.',
+            '토큰을 발급한 지 오래됐다면 아래 절차로 교체해주세요. (교체 후에도 이 리마인더는 매주 월요일 발송됩니다)',
+            '',
+            '조치 방법:',
+            '1. Meta 앱 대시보드에서 "Generate token"으로 새 토큰 발급',
+            '2. Vercel → INSTAGRAM_ACCESS_TOKEN 교체 후 Redeploy',
+            '',
+            '토큰이 만료되어 실제로 갱신이 실패하면 별도의 경고 메일이 즉시 발송됩니다.',
+          ].join('\n')
+        )
+      }
       return NextResponse.json({ ok: true, rotated: true, expiresInDays: days })
     }
 
