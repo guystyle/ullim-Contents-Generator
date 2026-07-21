@@ -7,10 +7,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 export type Brand = 'ullim' | 'dfz'
 export type ContentType = 'artist-image' | 'artist-caption' | 'poster-caption'
 
+export interface PosterData {
+  vol: string // e.g. "vol.13" (optional)
+  theme: string // free-text theme/concept/notes — feeds the narrative body
+  krInfo: string // deterministic Korean info block (date/venue/lineup), pre-formatted
+  enInfo: string // deterministic English info block, pre-formatted
+}
+
 export interface GenerateRequest {
   contentType: ContentType
   brand: Brand
-  input: string // bio text (artist) OR free-form event info (poster)
+  input: string // bio text (artist) OR theme text (poster)
+  poster?: PosterData // structured event info for poster-caption
 }
 
 export interface GenerateResponse {
@@ -301,50 +309,68 @@ ullim.`,
 }
 
 function posterPrompt(req: GenerateRequest, examples: RealExamples): string {
-  const mandatory =
+  const p = req.poster
+  const titleRule =
     req.brand === 'dfz'
-      ? `# Mandatory elements (DFZ)
-- Header line: "ullim presents: Duty Free Zone vol.{number}" (use the volume number from input).
-- Include the line "NO DUTY, Only Flow." after the body, before the info block.
-- Closing must be exactly two lines:
-  Your Tempo, Our Resonance.
-  ullim.`
-      : `# Mandatory elements (ullim)
-- A short themed title line at the very top (with a fitting emoji), derived from the event theme.
-- Closing must be exactly two lines:
-  Your Tempo, Our Resonance.
-  ullim.`
+      ? `- DO NOT write a title. The header line ("ullim presents: Duty Free Zone…") is added automatically — leave krTitle and enTitle as empty strings "".`
+      : `- Write a short themed TITLE line for each language (krTitle, enTitle) with a fitting emoji, derived from the theme. These open each language section.`
 
   return [
-    `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}, writing the full Instagram POSTER caption for a party.`,
+    `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}, writing the NARRATIVE BODY of an Instagram poster caption for a party.`,
     ``,
     contextBlock(req),
     SHARED_RULES,
     ``,
-    `# Reference example (follow this exact structure, tone, and bilingual layout)`,
+    `# Reference example (for TONE and rhythm of the body only — do NOT copy its structure/info block)`,
     POSTER_EXAMPLE[req.brand],
     realExamples(examples, req.brand, 'posterCaptions'),
     ``,
-    mandatory,
+    `# Your job — write ONLY the narrative body, in BOTH Korean and English`,
+    `- The event's fixed info (date, venue, DJ lineup), the "[English Below]" marker, the header, the "NO DUTY, Only Flow." line, and the closing signature are ALL added automatically afterward. DO NOT write any of them.`,
+    `- Write 2~3 short paragraphs of narrative that set the mood and reflect the artists/theme below. This is the only creative text.`,
+    titleRule,
+    `- The English body is a natural rewrite of the Korean, NOT a literal translation.`,
+    `- No hashtags. Do NOT list the lineup, date, or venue inside the body.`,
     ``,
-    `# Structure rules`,
-    `- Start with "[English Below]" near the top (after the title/header).`,
-    `- Korean version first, then a single line "/", then the English version.`,
-    `- Analyze the participating artists from the input and reflect their character/sound in the body.`,
-    `- Include an info block with: 🗓️ date, 📍 venue (keep @handles exactly as given), 🎧 lineup (keep times and @handles exactly as given).`,
-    `- Do NOT invent dates, venues, handles, or names. Use only what's in the input. If something is missing, omit that line.`,
-    `- No hashtags.`,
+    `# Theme / concept / notes`,
+    p?.theme?.trim() || req.input,
     ``,
-    `# Event info (input)`,
-    req.input,
+    `# Fixed info for reference (already formatted — reference the artists in your body, but DO NOT reproduce this block)`,
+    p?.krInfo ?? '',
     ``,
     SELF_CHECK,
     ``,
     `# Output`,
-    `Put the ENTIRE caption (Korean + "/" + English, including title, info block, and closing) into the "korean" field as one complete string. Leave "english" empty.`,
     `Respond ONLY as JSON, no markdown:`,
-    `{ "korean": "...full caption...", "english": "" }`,
+    `{ "krTitle": "...", "enTitle": "...", "koreanBody": "...", "englishBody": "..." }`,
   ].join('\n')
+}
+
+interface PosterParts {
+  krTitle?: string
+  enTitle?: string
+  koreanBody?: string
+  englishBody?: string
+}
+
+// Deterministically assemble the full bilingual poster caption around the
+// AI-written narrative. The recurring info block, header, mandatory line and
+// closing are fixed here so they never drift between generations.
+function assemblePoster(brand: Brand, p: PosterData, parts: PosterParts): string {
+  const closing = 'Your Tempo, Our Resonance.\nullim.'
+  const header =
+    brand === 'dfz' ? `ullim presents: Duty Free Zone${p.vol.trim() ? ` ${p.vol.trim()}` : ''}` : ''
+  const mandatory = brand === 'dfz' ? 'NO DUTY, Only Flow.' : ''
+  const krBody = (parts.koreanBody ?? '').trim()
+  const enBody = (parts.englishBody ?? '').trim()
+
+  const section = (top: string, body: string, info: string) =>
+    [top, body, mandatory, info, closing].filter(Boolean).join('\n\n')
+
+  const krTop = brand === 'dfz' ? `${header}\n\n[English Below]` : `${(parts.krTitle ?? '').trim()}\n[English Below]`
+  const enTop = brand === 'dfz' ? header : (parts.enTitle ?? '').trim()
+
+  return [section(krTop, krBody, p.krInfo), '/', section(enTop, enBody, p.enInfo)].join('\n\n')
 }
 
 function buildPrompt(req: GenerateRequest, examples: RealExamples): string {
@@ -401,6 +427,9 @@ export async function POST(req: NextRequest) {
     if (!body.contentType || !body.brand || !body.input?.trim()) {
       return NextResponse.json({ error: 'Missing required fields: contentType, brand, input' }, { status: 400 })
     }
+    if (body.contentType === 'poster-caption' && !body.poster) {
+      return NextResponse.json({ error: 'Missing poster event info' }, { status: 400 })
+    }
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite',
@@ -413,6 +442,15 @@ export async function POST(req: NextRequest) {
     const result = await model.generateContent(prompt)
     const text = result.response.text().trim()
     const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
+
+    // Poster: the model returns only narrative parts; we assemble the full caption
+    // deterministically so the recurring info block never drifts.
+    if (body.contentType === 'poster-caption') {
+      const parts = JSON.parse(cleaned) as PosterParts
+      const korean = assemblePoster(body.brand, body.poster!, parts)
+      return NextResponse.json({ korean, english: '' } as GenerateResponse)
+    }
+
     const parsed = JSON.parse(cleaned) as GenerateResponse
 
     // Hard-enforce length limits for the image card (model is unreliable on its own).

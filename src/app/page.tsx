@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import type { GenerateRequest, GenerateResponse, Brand, ContentType } from './api/generate/route'
+import type { GenerateRequest, GenerateResponse, Brand, ContentType, PosterData } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
   {
@@ -232,6 +232,16 @@ export default function Home() {
   const [djIg, setDjIg] = useState('')
   const [josa, setJosa] = useState<'을' | '를'>('을')
 
+  // structured event-info form (poster-caption)
+  type LineupRow = { time: string; name: string; ig: string }
+  const [pVol, setPVol] = useState('')
+  const [pTheme, setPTheme] = useState('')
+  const [pDate, setPDate] = useState('')
+  const [pVenueName, setPVenueName] = useState('BAR UNION')
+  const [pVenueIg, setPVenueIg] = useState('@unionseoul')
+  const [pLineup, setPLineup] = useState<LineupRow[]>([{ time: '', name: '', ig: '' }])
+  const [pWithUllim, setPWithUllim] = useState(true)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
@@ -241,7 +251,6 @@ export default function Home() {
     return () => document.documentElement.removeAttribute('data-brand')
   }, [brand])
 
-  const current = CONTENT_TYPES.find((t) => t.value === contentType)!
   const isImage = contentType === 'artist-image'
 
   const isArtistCaption = contentType === 'artist-caption'
@@ -254,26 +263,44 @@ export default function Home() {
 
   // Normalize a free-text date to "YYYY. MM. DD. (요일)", computing the weekday in JS.
   const WD = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
-  const formatDate = (raw: string) => {
-    const t = raw.trim()
-    const m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/)
-    if (!m) return t
+  const parseDate = (raw: string) => {
+    const m = raw.trim().match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/)
+    if (!m) return null
     const [, y, mo, d] = m
     const dt = new Date(Number(y), Number(mo) - 1, Number(d))
-    if (isNaN(dt.getTime())) return t
-    const mm = String(Number(mo)).padStart(2, '0')
-    const dd = String(Number(d)).padStart(2, '0')
-    return `${y}. ${mm}. ${dd}. ${WD[dt.getDay()]}`
+    if (isNaN(dt.getTime())) return null
+    return { y, mo: Number(mo), d: Number(d), dt }
+  }
+  const formatDate = (raw: string) => {
+    const p = parseDate(raw)
+    if (!p) return raw.trim()
+    return `${p.y}. ${String(p.mo).padStart(2, '0')}. ${String(p.d).padStart(2, '0')}. ${WD[p.dt.getDay()]}`
   }
 
-  const handleDateInput = (raw: string) => {
+  // "Thursday, May 21st, 2026"
+  const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const WD_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const ordinal = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd']
+    const v = n % 100
+    return n + (s[(v - 20) % 10] || s[v] || s[0])
+  }
+  const formatDateEN = (raw: string) => {
+    const p = parseDate(raw)
+    if (!p) return raw.trim()
+    return `${WD_EN[p.dt.getDay()]}, ${MONTHS_EN[p.mo - 1]} ${ordinal(p.d)}, ${p.y}`
+  }
+
+  const maskDate = (raw: string) => {
     const digits = raw.replace(/\D/g, '').slice(0, 8)
     let out = digits.slice(0, 4)
     if (digits.length > 4) out += '. ' + digits.slice(4, 6)
     if (digits.length > 6) out += '. ' + digits.slice(6, 8)
     if (digits.length === 8) out += '.'
-    setDate(out)
+    return out
   }
+  const handleDateInput = (raw: string) => setDate(maskDate(raw))
+  const handlePDateInput = (raw: string) => setPDate(maskDate(raw))
 
   const buildEventInfo = () => {
     const venue = [venueName.trim(), ig(venueIg)].filter(Boolean).join(' ')
@@ -287,22 +314,62 @@ export default function Home() {
     ].filter(Boolean).join('\n')
   }
 
+  const setLineupRow = (i: number, patch: Partial<LineupRow>) =>
+    setPLineup((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  const addLineupRow = () => setPLineup((rows) => [...rows, { time: '', name: '', ig: '' }])
+  const removeLineupRow = (i: number) => setPLineup((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows))
+
+  // Build the deterministic poster info block for a given date string.
+  const buildPosterInfo = (dateStr: string) => {
+    const venue = [pVenueName.trim(), ig(pVenueIg)].filter(Boolean).join(' ')
+    const lineupLines = pLineup
+      .filter((r) => r.name.trim())
+      .map((r) => [r.time.trim(), r.name.trim(), ig(r.ig)].filter(Boolean).join(' '))
+    return [
+      `🗓️ ${dateStr}`,
+      venue ? `📍 ${venue}` : '',
+      `🎧 ${brand === 'dfz' ? 'DJ' : 'Music by'}`,
+      ...lineupLines,
+      pWithUllim ? 'with ullim' : '',
+    ].filter(Boolean).join('\n')
+  }
+
+  const isPoster = contentType === 'poster-caption'
+
   const handleGenerate = useCallback(async () => {
     setError(null)
-    if (!input.trim()) {
-      setError('아티스트 바이오그래피를 입력해주세요.')
-      return
+    let body: GenerateRequest
+
+    if (isPoster) {
+      if (!pTheme.trim()) {
+        setError('테마/설명을 입력해주세요.')
+        return
+      }
+      if (!pDate.trim() || pLineup.every((r) => !r.name.trim())) {
+        setError('날짜와 라인업(최소 1명)은 필수입니다.')
+        return
+      }
+      const poster: PosterData = {
+        vol: pVol.trim(),
+        theme: pTheme.trim(),
+        krInfo: buildPosterInfo(formatDate(pDate)),
+        enInfo: buildPosterInfo(formatDateEN(pDate)),
+      }
+      body = { contentType, brand, input: pTheme.trim(), poster }
+    } else {
+      if (!input.trim()) {
+        setError('아티스트 바이오그래피를 입력해주세요.')
+        return
+      }
+      if (isArtistCaption && (!date.trim() || !venueName.trim() || !djName.trim())) {
+        setError('날짜, 장소, 디제이는 필수로 입력해주세요.')
+        return
+      }
+      const combinedInput = isArtistCaption ? `${input.trim()}\n\n${buildEventInfo()}` : input.trim()
+      body = { contentType, brand, input: combinedInput }
     }
-    const eventInfo = buildEventInfo()
-    if (isArtistCaption && (!date.trim() || !venueName.trim() || !djName.trim())) {
-      setError('날짜, 장소, 디제이는 필수로 입력해주세요.')
-      return
-    }
+
     setLoading(true)
-    const combinedInput = isArtistCaption
-      ? `${input.trim()}\n\n${eventInfo}`
-      : input.trim()
-    const body: GenerateRequest = { contentType, brand, input: combinedInput }
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -318,7 +385,7 @@ export default function Home() {
       setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentType, brand, input, round, date, venueName, venueIg, djName, djIg, josa, isArtistCaption])
+  }, [contentType, brand, input, round, date, venueName, venueIg, djName, djIg, josa, isArtistCaption, isPoster, pVol, pTheme, pDate, pVenueName, pVenueIg, pLineup, pWithUllim])
 
   const hasKR = !!result?.korean?.trim()
   const hasEN = !!result?.english?.trim()
@@ -440,21 +507,84 @@ export default function Home() {
             </div>
           )}
 
-          {/* Event info — poster-caption free text */}
-          {contentType === 'poster-caption' && (
-            <div>
-              <InputLabel>이벤트 정보</InputLabel>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={current.placeholder}
-                rows={9}
-                className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
-              />
-            </div>
+          {/* Event info — structured form (poster-caption) */}
+          {isPoster && (
+            <>
+              <div>
+                <InputLabel>테마 / 설명</InputLabel>
+                <textarea
+                  value={pTheme}
+                  onChange={(e) => setPTheme(e.target.value)}
+                  placeholder={'파티 테마·컨셉·분위기, 특별 게스트 소개 등 본문에 반영할 내용을 자유롭게.\n\ne.g. 해방, 흐름, 날카로운 전자음과 현악의 질감. 반년의 축적을 지나 새로운 주축을 세우는 밤.'}
+                  rows={6}
+                  className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
+                />
+              </div>
+
+              <div>
+                <InputLabel>이벤트 정보</InputLabel>
+                <div className="rounded-2xl p-4 space-y-3" style={{ border: '1px solid var(--border-muted)' }}>
+                  <div>
+                    <FieldLabel optional>{brand === 'dfz' ? '볼륨 (vol.)' : '회차'}</FieldLabel>
+                    <TextInput value={pVol} onChange={setPVol} placeholder="e.g. vol.13" />
+                  </div>
+                  <div>
+                    <FieldLabel>날짜</FieldLabel>
+                    <TextInput value={pDate} onChange={handlePDateInput} placeholder="e.g. 20260521 → 2026. 05. 21." />
+                  </div>
+                  <div>
+                    <FieldLabel>장소</FieldLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TextInput value={pVenueName} onChange={setPVenueName} placeholder="이름 (e.g. BAR UNION)" />
+                      <TextInput value={pVenueIg} onChange={setPVenueIg} placeholder="인스타 (e.g. @unionseoul)" />
+                    </div>
+                  </div>
+                  <div>
+                    <FieldLabel>라인업</FieldLabel>
+                    <div className="space-y-2">
+                      {pLineup.map((row, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <div className="w-16 shrink-0">
+                            <TextInput value={row.time} onChange={(v) => setLineupRow(i, { time: v })} placeholder="시간" />
+                          </div>
+                          <div className="flex-1">
+                            <TextInput value={row.name} onChange={(v) => setLineupRow(i, { name: v })} placeholder="DJ 이름 (e.g. ESCBR)" />
+                          </div>
+                          <div className="flex-1">
+                            <TextInput value={row.ig} onChange={(v) => setLineupRow(i, { ig: v })} placeholder="@insta" />
+                          </div>
+                          <button
+                            onClick={() => removeLineupRow(i)}
+                            aria-label="라인업 삭제"
+                            className="shrink-0 w-7 h-7 rounded-full border flex items-center justify-center transition-all disabled:opacity-30"
+                            style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
+                            disabled={pLineup.length === 1}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={addLineupRow}
+                      className="mt-2 text-[11px] flex items-center gap-1 transition-colors"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                      DJ 추가
+                    </button>
+                    <p className="text-[11px] mt-1" style={{ color: 'var(--border)' }}>시간은 선택 (ullim은 보통 표기, DFZ는 생략)</p>
+                  </div>
+                  <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                    <input type="checkbox" checked={pWithUllim} onChange={(e) => setPWithUllim(e.target.checked)} className="accent-current" style={{ accentColor: 'var(--accent)' }} />
+                    <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>라인업 끝에 &ldquo;with ullim&rdquo; 표기</span>
+                  </label>
+                </div>
+              </div>
+            </>
           )}
 
           {error && (
