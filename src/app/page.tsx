@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { GenerateRequest, GenerateResponse, Brand, ContentType, PosterData } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
@@ -102,7 +102,7 @@ function OutputCard({
 }) {
   const pRef = useRef<HTMLParagraphElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
-  const rangeRef = useRef<Range | null>(null)
+  const markRef = useRef<HTMLElement>(null)
   const [sel, setSel] = useState<{ start: number; end: number; text: string } | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null)
   const [instruction, setInstruction] = useState('')
@@ -111,9 +111,9 @@ function OutputCard({
 
   const POP_W = 300
   const computePos = () => {
-    const r = rangeRef.current
-    if (!r) return
-    const rect = r.getBoundingClientRect()
+    const el = markRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - POP_W - 8))
     const below = rect.top < 200
     setPos({ top: below ? rect.bottom + 8 : rect.top - 8, left, below })
@@ -124,7 +124,6 @@ function OutputCard({
     setPos(null)
     setInstruction('')
     setErr(null)
-    rangeRef.current = null
   }
 
   const captureSelection = () => {
@@ -139,11 +138,16 @@ function OutputCard({
     const start = pre.toString().length
     const text = range.toString()
     if (!text.trim()) return
-    rangeRef.current = range.cloneRange()
     setErr(null)
     setSel({ start, end: start + text.length, text })
-    computePos()
+    s.removeAllRanges() // drop the native highlight; our custom mark takes over
   }
+
+  // Position the popover from the rendered highlight once it exists.
+  useLayoutEffect(() => {
+    if (sel) computePos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel])
 
   useEffect(() => {
     if (!sel) return
@@ -198,7 +202,15 @@ function OutputCard({
         className="text-sm whitespace-pre-line"
         style={{ color: 'var(--fg)', lineHeight: '1.7' }}
       >
-        {body}
+        {sel ? (
+          <>
+            {body.slice(0, sel.start)}
+            <mark ref={markRef} className="mark-pending">{body.slice(sel.start, sel.end)}</mark>
+            {body.slice(sel.end)}
+          </>
+        ) : (
+          body
+        )}
       </p>
 
       {sel && pos && (
