@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { GenerateRequest, GenerateResponse, Brand, ContentType, PosterData } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
@@ -88,7 +88,62 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   )
 }
 
-function OutputCard({ title, body, copyLabel, showCount }: { title: string; body: string; copyLabel: string; showCount?: boolean }) {
+function OutputCard({
+  title, body, copyLabel, showCount, brand, contentType, lang, onBodyChange,
+}: {
+  title: string
+  body: string
+  copyLabel: string
+  showCount?: boolean
+  brand: Brand
+  contentType: ContentType
+  lang: 'ko' | 'en'
+  onBodyChange: (v: string) => void
+}) {
+  const pRef = useRef<HTMLParagraphElement>(null)
+  const [sel, setSel] = useState<{ start: number; end: number; text: string } | null>(null)
+  const [instruction, setInstruction] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const captureSelection = () => {
+    const s = window.getSelection()
+    const pEl = pRef.current
+    if (!s || s.rangeCount === 0 || s.isCollapsed || !pEl) return
+    const range = s.getRangeAt(0)
+    if (!pEl.contains(range.startContainer) || !pEl.contains(range.endContainer)) return
+    const pre = document.createRange()
+    pre.selectNodeContents(pEl)
+    pre.setEnd(range.startContainer, range.startOffset)
+    const start = pre.toString().length
+    const text = range.toString()
+    if (!text.trim()) return
+    setErr(null)
+    setSel({ start, end: start + text.length, text })
+  }
+
+  const doRewrite = async () => {
+    if (!sel) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const res = await fetch('/api/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, contentType, lang, fullText: body, fragment: sel.text, instruction: instruction.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Rewrite failed')
+      onBodyChange(body.slice(0, sel.start) + data.rewritten + body.slice(sel.end))
+      setSel(null)
+      setInstruction('')
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Something went wrong')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)' }}>
       <div className="flex items-center justify-between">
@@ -97,7 +152,50 @@ function OutputCard({ title, body, copyLabel, showCount }: { title: string; body
         </span>
         <CopyButton text={body} label={copyLabel} />
       </div>
-      <p className="text-sm whitespace-pre-line" style={{ color: 'var(--fg)', lineHeight: '1.7' }}>{body}</p>
+      <p
+        ref={pRef}
+        onMouseUp={captureSelection}
+        onTouchEnd={captureSelection}
+        className="text-sm whitespace-pre-line"
+        style={{ color: 'var(--fg)', lineHeight: '1.7' }}
+      >
+        {body}
+      </p>
+
+      {sel && (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--bg)', border: '1px solid var(--border-muted)' }}>
+          <p className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>
+            선택: <span style={{ color: 'var(--fg)' }}>&ldquo;{sel.text.length > 40 ? sel.text.slice(0, 40) + '…' : sel.text}&rdquo;</span>
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !busy && doRewrite()}
+              placeholder="지시 (선택) e.g. 더 짧게, 더 따뜻하게"
+              className="flex-1 rounded-lg px-3 py-2 text-xs focus:outline-none"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)' }}
+            />
+            <button
+              onClick={doRewrite}
+              disabled={busy}
+              className="text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40 whitespace-nowrap"
+              style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
+            >
+              {busy ? '...' : '다시 쓰기'}
+            </button>
+            <button
+              onClick={() => { setSel(null); setInstruction(''); setErr(null) }}
+              className="text-xs px-2 py-2 rounded-lg transition-colors"
+              style={{ color: 'var(--fg-muted)' }}
+            >
+              취소
+            </button>
+          </div>
+          {err && <p className="text-[11px]" style={{ color: 'var(--error-fg)' }}>{err}</p>}
+        </div>
+      )}
     </div>
   )
 }
@@ -625,8 +723,30 @@ export default function Home() {
               </button>
             </div>
 
-            {hasKR && <OutputCard title={hasEN ? '한글' : 'Caption'} body={result.korean!} copyLabel={hasEN ? '한글' : '캡션'} showCount={isImage} />}
-            {hasEN && <OutputCard title="English" body={result.english!} copyLabel="EN" showCount={isImage} />}
+            {hasKR && (
+              <OutputCard
+                title={hasEN ? '한글' : 'Caption'}
+                body={result.korean!}
+                copyLabel={hasEN ? '한글' : '캡션'}
+                showCount={isImage}
+                brand={brand}
+                contentType={contentType}
+                lang="ko"
+                onBodyChange={(v) => setResult((r) => (r ? { ...r, korean: v } : r))}
+              />
+            )}
+            {hasEN && (
+              <OutputCard
+                title="English"
+                body={result.english!}
+                copyLabel="EN"
+                showCount={isImage}
+                brand={brand}
+                contentType={contentType}
+                lang="en"
+                onBodyChange={(v) => setResult((r) => (r ? { ...r, english: v } : r))}
+              />
+            )}
 
             <div className="flex justify-end">
               <CopyButton text={[result.korean, result.english].filter((s) => s?.trim()).join('\n\n')} label="전체" />
