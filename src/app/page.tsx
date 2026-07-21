@@ -101,10 +101,31 @@ function OutputCard({
   onBodyChange: (v: string) => void
 }) {
   const pRef = useRef<HTMLParagraphElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const rangeRef = useRef<Range | null>(null)
   const [sel, setSel] = useState<{ start: number; end: number; text: string } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null)
   const [instruction, setInstruction] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  const POP_W = 300
+  const computePos = () => {
+    const r = rangeRef.current
+    if (!r) return
+    const rect = r.getBoundingClientRect()
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - POP_W - 8))
+    const below = rect.top < 200
+    setPos({ top: below ? rect.bottom + 8 : rect.top - 8, left, below })
+  }
+
+  const close = () => {
+    setSel(null)
+    setPos(null)
+    setInstruction('')
+    setErr(null)
+    rangeRef.current = null
+  }
 
   const captureSelection = () => {
     const s = window.getSelection()
@@ -118,9 +139,28 @@ function OutputCard({
     const start = pre.toString().length
     const text = range.toString()
     if (!text.trim()) return
+    rangeRef.current = range.cloneRange()
     setErr(null)
     setSel({ start, end: start + text.length, text })
+    computePos()
   }
+
+  useEffect(() => {
+    if (!sel) return
+    const reposition = () => computePos()
+    const onDown = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) close()
+    }
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    document.addEventListener('mousedown', onDown)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+      document.removeEventListener('mousedown', onDown)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel])
 
   const doRewrite = async () => {
     if (!sel) return
@@ -135,8 +175,7 @@ function OutputCard({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Rewrite failed')
       onBodyChange(body.slice(0, sel.start) + data.rewritten + body.slice(sel.end))
-      setSel(null)
-      setInstruction('')
+      close()
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Something went wrong')
     } finally {
@@ -162,33 +201,48 @@ function OutputCard({
         {body}
       </p>
 
-      {sel && (
-        <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--bg)', border: '1px solid var(--border-muted)' }}>
+      {sel && pos && (
+        <div
+          ref={popRef}
+          className="rounded-xl p-3 space-y-2 shadow-lg"
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            width: POP_W,
+            zIndex: 50,
+            transform: pos.below ? 'none' : 'translateY(-100%)',
+            background: 'var(--surface)',
+            border: '1px solid var(--accent)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <p className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>
-            선택: <span style={{ color: 'var(--fg)' }}>&ldquo;{sel.text.length > 40 ? sel.text.slice(0, 40) + '…' : sel.text}&rdquo;</span>
+            선택: <span style={{ color: 'var(--fg)' }}>&ldquo;{sel.text.length > 36 ? sel.text.slice(0, 36) + '…' : sel.text}&rdquo;</span>
           </p>
+          <input
+            type="text"
+            autoFocus
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !busy) doRewrite(); if (e.key === 'Escape') close() }}
+            placeholder="지시 (선택) e.g. 더 짧게"
+            className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border-muted)', color: 'var(--fg)' }}
+          />
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !busy && doRewrite()}
-              placeholder="지시 (선택) e.g. 더 짧게, 더 따뜻하게"
-              className="flex-1 rounded-lg px-3 py-2 text-xs focus:outline-none"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)' }}
-            />
             <button
               onClick={doRewrite}
               disabled={busy}
-              className="text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40 whitespace-nowrap"
+              className="flex-1 text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40"
               style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)' }}
             >
-              {busy ? '...' : '다시 쓰기'}
+              {busy ? '재작성 중...' : '다시 쓰기'}
             </button>
             <button
-              onClick={() => { setSel(null); setInstruction(''); setErr(null) }}
-              className="text-xs px-2 py-2 rounded-lg transition-colors"
-              style={{ color: 'var(--fg-muted)' }}
+              onClick={close}
+              className="text-xs px-3 py-2 rounded-lg transition-colors"
+              style={{ color: 'var(--fg-muted)', border: '1px solid var(--border-muted)' }}
             >
               취소
             </button>
