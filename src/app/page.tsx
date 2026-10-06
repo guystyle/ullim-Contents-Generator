@@ -29,6 +29,23 @@ const BRANDS: { value: Brand; label: string }[] = [
   { value: 'dfz', label: 'DFZ' },
 ]
 
+// Parse an API response defensively: non-JSON bodies (Vercel timeout page,
+// login redirect, empty reply) become a readable error instead of a parser crash.
+async function readJson(res: Response) {
+  if (res.redirected && new URL(res.url).pathname === '/login') {
+    throw new Error('로그인이 만료되었습니다. 페이지를 새로고침해서 다시 로그인해주세요.')
+  }
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (res.status === 504 || /timeout|FUNCTION_INVOCATION/i.test(text)) {
+      throw new Error('서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.')
+    }
+    throw new Error(`서버가 올바르지 않은 응답을 반환했습니다 (${res.status}). 잠시 후 다시 시도해주세요.`)
+  }
+}
+
 /* ── UI atoms ── */
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
@@ -176,7 +193,7 @@ function OutputCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brand, contentType, lang, fullText: body, fragment: sel.text, instruction: instruction.trim() }),
       })
-      const data = await res.json()
+      const data = await readJson(res)
       if (!res.ok) throw new Error(data.error || 'Rewrite failed')
       onBodyChange(body.slice(0, sel.start) + data.rewritten + body.slice(sel.end))
       close()
@@ -540,7 +557,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data = await res.json()
+      const data = await readJson(res)
       if (!res.ok) throw new Error(data.error || 'Generation failed')
       setResult(data as GenerateResponse)
     } catch (err) {

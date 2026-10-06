@@ -7,6 +7,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
 export type { Brand, ContentType }
 
+// Generation can chain several Gemini calls (+ Instagram fetch); the 10s default is too short.
+export const maxDuration = 60
+
 export interface PosterData {
   vol: string // e.g. "vol.13" (optional)
   theme: string // free-text theme/concept/notes — feeds the narrative body

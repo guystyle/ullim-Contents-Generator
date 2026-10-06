@@ -4,6 +4,8 @@ import { toneContext, SHARED_RULES, type Brand, type ContentType } from '@/lib/t
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
+export const maxDuration = 30
+
 export interface RewriteRequest {
   brand: Brand
   contentType: ContentType
