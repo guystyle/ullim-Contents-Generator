@@ -348,11 +348,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing poster event info' }, { status: 400 })
     }
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3.1-flash-lite',
-      // Low temperature keeps the brand tone consistent across runs.
-      generationConfig: { temperature: 0.35 },
-    })
+    // No sampling params: Gemini deprecated temperature/top_p/top_k (defaults only).
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' })
     const examples = await fetchRealExamples()
     const prompt = buildPrompt(body, examples)
 
