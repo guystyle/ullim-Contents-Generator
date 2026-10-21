@@ -308,6 +308,170 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
   )
 }
 
+/* ── Carousel splitter: one 2160×1350 Canva export → two 1080×1350 slides + OCR ── */
+
+type Slide = { url: string; name: string }
+
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('이미지를 불러올 수 없습니다.'))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('이미지 변환 실패'))), type, quality)
+  )
+}
+
+function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: string) => void }) {
+  const [slides, setSlides] = useState<Slide[]>([])
+  const [note, setNote] = useState<string | null>(null)
+  const [ocrState, setOcrState] = useState<'idle' | 'reading' | 'done' | 'error'>('idle')
+  const [drag, setDrag] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setNote('이미지 파일만 올릴 수 있어요.')
+      return
+    }
+    slides.forEach((s) => URL.revokeObjectURL(s.url))
+    setSlides([])
+    setNote(null)
+    try {
+      const img = await loadImage(file)
+      const w = img.naturalWidth
+      const h = img.naturalHeight
+      if (w !== 2160 || h !== 1350) {
+        setNote(`이미지가 ${w}×${h}입니다. 2160×1350 기준으로 만들어졌지만 가로로 반을 잘라 진행할게요.`)
+      }
+
+      // Split into left/right halves at full resolution.
+      const half = Math.floor(w / 2)
+      const name = (baseName.trim() || 'artist').replace(/[^\w가-힣.-]+/g, '_')
+      const out: Slide[] = []
+      for (let i = 0; i < 2; i++) {
+        const c = document.createElement('canvas')
+        c.width = half
+        c.height = h
+        c.getContext('2d')!.drawImage(img, i * half, 0, half, h, 0, 0, half, h)
+        const blob = await canvasToBlob(c, 'image/png')
+        out.push({ url: URL.createObjectURL(blob), name: `${name}_${i + 1}.png` })
+      }
+      setSlides(out)
+
+      // OCR on a downscaled JPEG to keep the request small.
+      setOcrState('reading')
+      const scale = Math.min(1, 1600 / w)
+      const c = document.createElement('canvas')
+      c.width = Math.round(w * scale)
+      c.height = Math.round(h * scale)
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
+      const jpeg = await canvasToBlob(c, 'image/jpeg', 0.85)
+      const b64 = await new Promise<string>((resolve) => {
+        const r = new FileReader()
+        r.onload = () => resolve(String(r.result).split(',')[1] ?? '')
+        r.readAsDataURL(jpeg)
+      })
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: b64, mimeType: 'image/jpeg' }),
+      })
+      const data = await readJson(res)
+      if (!res.ok) throw new Error(data.error || 'OCR failed')
+      if (data.text) {
+        onText(data.text)
+        setOcrState('done')
+      } else {
+        setOcrState('error')
+      }
+    } catch (e) {
+      setOcrState('error')
+      setNote(e instanceof Error ? e.message : '처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  const download = (s: Slide) => {
+    const a = document.createElement('a')
+    a.href = s.url
+    a.download = s.name
+    a.click()
+  }
+
+  return (
+    <div>
+      <InputLabel>아티스트 이미지 (캔바 원본)</InputLabel>
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDrag(false)
+          const f = e.dataTransfer.files?.[0]
+          if (f) handleFile(f)
+        }}
+        className="rounded-2xl px-4 py-6 text-center cursor-pointer transition-colors"
+        style={{
+          border: `1px dashed ${drag ? 'var(--accent)' : 'var(--border)'}`,
+          background: drag ? 'var(--surface)' : 'transparent',
+        }}
+      >
+        <p className="text-xs" style={{ color: 'var(--fg)' }}>2160×1350 이미지를 끌어다 놓거나 클릭해서 선택</p>
+        <p className="text-[11px] mt-1" style={{ color: 'var(--fg-muted)' }}>
+          캐러셀 2장으로 자르고, 이미지 속 소개 문구를 읽어 아래 바이오란에 채워요
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleFile(f)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
+      {note && <p className="text-[11px] mt-2" style={{ color: 'var(--error-fg)' }}>{note}</p>}
+
+      {slides.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {slides.map((s, i) => (
+              <button key={s.url} onClick={() => download(s)} className="group text-left">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={s.url} alt={`캐러셀 ${i + 1}페이지`} className="w-full rounded-xl" style={{ border: '1px solid var(--border-muted)' }} />
+                <span className="text-[11px] mt-1 block" style={{ color: 'var(--fg-muted)' }}>{i + 1}페이지 · 눌러서 저장</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>
+              {ocrState === 'reading' && '이미지 속 문구 읽는 중...'}
+              {ocrState === 'done' && '✓ 문구를 읽어 바이오란에 채웠어요'}
+              {ocrState === 'error' && '문구를 읽지 못했어요. 바이오를 직접 입력해주세요.'}
+            </span>
+            <button
+              onClick={() => slides.forEach((s, i) => setTimeout(() => download(s), i * 300))}
+              className="text-xs px-3 py-1.5 rounded-full border transition-colors"
+              style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
+            >
+              2장 모두 저장
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Few-shot training data panel ── */
 
 interface InstaStatus {
@@ -615,6 +779,9 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Canva export → carousel slides + OCR into the bio field */}
+          {isArtistCaption && <CarouselSplitter baseName={djName} onText={setInput} />}
+
           {/* Bio input — shared by artist-image & artist-caption */}
           {(isImage || isArtistCaption) && (
             <div>
@@ -631,7 +798,7 @@ export default function Home() {
               />
               {isArtistCaption && (
                 <p className="text-[11px] mt-2" style={{ color: 'var(--fg-muted)' }}>
-                  ※ 1번(아티스트 이미지)에서 쓴 바이오를 그대로 사용해도 좋아요.
+                  ※ 위에 캔바 이미지를 올리면 자동으로 채워져요. 직접 입력·수정해도 됩니다.
                 </p>
               )}
             </div>
