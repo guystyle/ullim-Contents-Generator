@@ -115,7 +115,7 @@ const CLOSING_VERBS_BASE = [
 // DFZ: this one line should feel imposing.
 const CLOSING_VERBS: Record<Brand, string[]> = {
   ullim: CLOSING_VERBS_BASE,
-  dfz: [...CLOSING_VERBS_BASE, '휩쓸리세요', '압도당하세요', '내던지세요', '굴복하세요', '잠식되세요'],
+  dfz: [...CLOSING_VERBS_BASE, '휩쓸리세요', '압도당하세요', '내던지세요', '잠식되세요', '사로잡히세요', '삼켜지세요'],
 }
 
 // Closing sentence of the most recent published artist caption per brand
