@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import pkg from '../../package.json'
 import type { GenerateRequest, GenerateResponse, Brand, ContentType, PosterData } from './api/generate/route'
 
 const CONTENT_TYPES: { value: ContentType; label: string; desc: string; placeholder: string }[] = [
@@ -1006,7 +1007,7 @@ export default function Home() {
       </main>
 
       <footer className="max-w-2xl mx-auto px-6 py-8 mt-10" style={{ borderTop: '1px solid var(--border-muted)' }}>
-        <p className="text-xs tracking-wider" style={{ color: 'var(--border-muted)' }}>Resounder v1.0.0 &ldquo;Obsidian&rdquo;</p>
+        <p className="text-xs tracking-wider" style={{ color: 'var(--border-muted)' }}>Resounder v{pkg.version} &ldquo;{pkg.codename}&rdquo;</p>
         <ExamplesPanel />
       </footer>
     </div>

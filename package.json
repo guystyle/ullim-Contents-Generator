@@ -1,7 +1,7 @@
 {
   "name": "ullim-contents-generator",
-  "version": "1.0.0",
-  "codename": "Obsidian",
+  "version": "1.1.0",
+  "codename": "Beryl",
   "private": true,
   "scripts": {
     "dev": "next dev",
