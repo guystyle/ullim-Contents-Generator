@@ -476,7 +476,7 @@ interface InstaStatus {
   lastSource: string
   lastError: string | null
   lastSuccessfulFetchAt: string | null
-  examples: Record<Brand, { artistCaptions: string[]; posterCaptions: string[] }>
+  examples: Record<Brand, { artistCaptions: string[]; posterCaptions: string[]; closingVerbs?: string[] }>
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -526,6 +526,15 @@ function ExamplesPanel() {
                   <span style={{ color: 'var(--error-fg)' }}> · {status.lastError}</span>
                 )}
               </p>
+              {(['ullim', 'dfz'] as const).map((b) => {
+                const verbs = status.examples[b].closingVerbs ?? []
+                if (!verbs.length) return null
+                return (
+                  <p key={`verbs-${b}`} className="text-xs leading-relaxed" style={{ color: 'var(--fg-muted)' }}>
+                    {b === 'ullim' ? 'ullim' : 'DFZ'} 마무리 동사 ({verbs.length}): <span style={{ color: 'var(--fg)' }}>{verbs.join(', ')}</span>
+                  </p>
+                )
+              })}
               {(['ullim', 'dfz'] as const).map((b) =>
                 (
                   [

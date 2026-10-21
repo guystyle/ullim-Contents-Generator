@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchRealExamples, realExamples, type RealExamples } from '@/lib/insta-examples'
+import { fetchRealExamples, realExamples, closingSentence, type RealExamples } from '@/lib/insta-examples'
 import { toneContext, SHARED_RULES, SELF_CHECK, type Brand, type ContentType } from '@/lib/tone'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -118,17 +118,24 @@ const CLOSING_VERBS: Record<Brand, string[]> = {
   dfz: [...CLOSING_VERBS_BASE, '휩쓸리세요', '압도당하세요', '내던지세요', '잠식되세요', '사로잡히세요', '삼켜지세요'],
 }
 
-// Closing sentence of the most recent published artist caption per brand
-// (the paragraph right before the "ullim presents" info block).
+// Verbs rejected by the team — never used, even if learned from a post.
+const BLOCKED_VERBS = ['굴복하세요']
+
+// Seed list + verbs learned from published posts (grows automatically).
+function closingVerbPool(brand: Brand, examples: RealExamples): string[] {
+  const learned = examples[brand]?.closingVerbs ?? []
+  const merged = [...CLOSING_VERBS[brand]]
+  for (const v of learned) {
+    // Skip a learned bare verb if a seed phrase already covers it (e.g. "맡기세요" ⊂ "몸을 맡기세요").
+    if (!merged.some((m) => m.endsWith(v))) merged.push(v)
+  }
+  return merged.filter((v) => !BLOCKED_VERBS.includes(v))
+}
+
+// Closing sentence of the most recent published artist caption per brand.
 function recentClosings(examples: RealExamples): string[] {
   return (['ullim', 'dfz'] as const)
-    .map((b) => {
-      const latest = examples[b].artistCaptions[0]
-      if (!latest) return ''
-      const paras = latest.split(/\n\s*\n/).map((p) => p.trim())
-      const infoIdx = paras.findIndex((p) => /^ullim presents/i.test(p))
-      return infoIdx > 0 ? paras[infoIdx - 1] : ''
-    })
+    .map((b) => (examples[b].artistCaptions[0] ? closingSentence(examples[b].artistCaptions[0]) : ''))
     .filter(Boolean)
 }
 
@@ -136,7 +143,7 @@ function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): stri
   const recent = recentClosings(examples)
   // Skip verbs used in the latest posts so consecutive posts never end the same way.
   const stem = (v: string) => v.replace(/세요$/, '')
-  const all = CLOSING_VERBS[req.brand]
+  const all = closingVerbPool(req.brand, examples)
   const pool = all.filter((v) => !recent.some((c) => c.includes(stem(v))))
   const choices = pool.length ? pool : all
   const verb = choices[Math.floor(Math.random() * choices.length)]

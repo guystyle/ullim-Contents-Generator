@@ -11,12 +11,13 @@ type Brand = 'ullim' | 'dfz'
 export interface ExampleBuckets {
   artistCaptions: string[]
   posterCaptions: string[]
+  closingVerbs: string[] // imperative endings learned from ALL published artist captions
 }
 export type RealExamples = Record<Brand, ExampleBuckets>
 
 const FALLBACK_EXAMPLES: RealExamples = {
-  ullim: instaExamples.ullim,
-  dfz: instaExamples.dfz,
+  ullim: { ...instaExamples.ullim, closingVerbs: [] },
+  dfz: { ...instaExamples.dfz, closingVerbs: [] },
 }
 
 const MAX_PER_BUCKET = 4
@@ -31,6 +32,21 @@ let lastFetchAt: string | null = null
 const isDfzCaption = (t: string) => /dfz|duty\s*free\s*zone/i.test(t)
 const isArtistCaption = (t: string) => /(을|를)\s*소개합니다/.test(t)
 const isPosterCaption = (t: string) => /english below/i.test(t) || /presents\s*:/i.test(t)
+
+// Closing sentence = the paragraph right before the "ullim presents" info block.
+export function closingSentence(caption: string): string {
+  const paras = caption.split(/\n\s*\n/).map((p) => p.trim())
+  const i = paras.findIndex((p) => /^ullim presents/i.test(p))
+  return i > 0 ? paras[i - 1] : ''
+}
+
+// Final imperative verb of a closing sentence, e.g. "…흐름에 몸을 맡기세요." → "맡기세요".
+// Softer "~해 보세요" endings are skipped (house style is the firm "~하세요").
+export function closingVerb(sentence: string): string {
+  const m = sentence.match(/([가-힣]+세요)[.!]?\s*$/)
+  if (!m || /보세요$/.test(m[1])) return ''
+  return m[1]
+}
 
 export async function fetchRealExamples(): Promise<RealExamples> {
   const token = process.env.INSTAGRAM_ACCESS_TOKEN
@@ -74,9 +90,21 @@ export async function fetchRealExamples(): Promise<RealExamples> {
     const trim = (arr: { c: string; t: string }[]) =>
       arr.sort((a, b) => (a.t < b.t ? 1 : -1)).slice(0, MAX_PER_BUCKET).map((x) => x.c)
 
+    // Learn closing verbs from every published artist caption (accumulates as posts grow).
+    const verbs = (arr: { c: string }[]) =>
+      Array.from(new Set(arr.map((x) => closingVerb(closingSentence(x.c))).filter(Boolean)))
+
     const data: RealExamples = {
-      ullim: { artistCaptions: trim(buckets.ullim.artistCaptions), posterCaptions: trim(buckets.ullim.posterCaptions) },
-      dfz: { artistCaptions: trim(buckets.dfz.artistCaptions), posterCaptions: trim(buckets.dfz.posterCaptions) },
+      ullim: {
+        closingVerbs: verbs(buckets.ullim.artistCaptions),
+        artistCaptions: trim(buckets.ullim.artistCaptions),
+        posterCaptions: trim(buckets.ullim.posterCaptions),
+      },
+      dfz: {
+        closingVerbs: verbs(buckets.dfz.artistCaptions),
+        artistCaptions: trim(buckets.dfz.artistCaptions),
+        posterCaptions: trim(buckets.dfz.posterCaptions),
+      },
     }
     igCache = { data, at: Date.now() }
     lastSource = 'live'
@@ -100,7 +128,7 @@ export function getInstaStatus() {
   }
 }
 
-export function realExamples(examples: RealExamples, brand: Brand, kind: keyof ExampleBuckets): string {
+export function realExamples(examples: RealExamples, brand: Brand, kind: 'artistCaptions' | 'posterCaptions'): string {
   const list = examples[brand]?.[kind] ?? []
   if (!list.length) return ''
   return [
