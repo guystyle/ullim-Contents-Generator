@@ -98,7 +98,22 @@ ullim presents: DFZ (Duty Free Zone)
 📍 BAR UNION @unionseoul
 👤 ESCBR @dj_escbr`
 
+// Closing-sentence verb, picked at random per request so the last line varies run to run.
+const CLOSING_VERBS = [
+  '빠져들어 보세요',
+  '귀 기울여 보세요',
+  '따라가 보세요',
+  '잠겨 보세요',
+  '스며들어 보세요',
+  '몸을 실어 보세요',
+  '머물러 보세요',
+  '마주해 보세요',
+  '흘러들어 보세요',
+  '함께해 보세요',
+]
+
 function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): string {
+  const verb = CLOSING_VERBS[Math.floor(Math.random() * CLOSING_VERBS.length)]
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
     `TASK: Take the input below (artist biography + event info) and write an Instagram carousel POST caption introducing the artist, following the EXACT format shown.`,
@@ -115,7 +130,10 @@ function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): stri
     `2. Blank line.`,
     `3. Body: 2~3 sentences. Do NOT copy the input biography sentences verbatim — REWRITE them in the brand's own voice. Extract only the essence (genre, identity, background) and restructure into fresh sentences with varied phrasing and rhythm. Keep all facts accurate; never invent new facts. Third person.`,
     `4. Blank line.`,
-    `5. Exactly ONE closing sentence inviting the reader (e.g. "~에 몸을 맡기세요.").`,
+    `5. Exactly ONE closing sentence inviting the reader, with this structure: "그가 [바이오에서 끌어낸 동작]하는 [이 아티스트 사운드의 특징을 담은 명사구]에/를/속으로 ${verb}."`,
+    `   - End with "${verb}." (adjust only the particle before it so it reads naturally).`,
+    `   - The 동작 and 명사구 must come from THIS artist's bio (genre, texture, mood). Do not reuse the closing wording of the format example or real examples (e.g. never "몸을 맡기세요"), and do not reuse words already used in the body.`,
+    `   - Keep it one sensory, tone-consistent sentence.`,
     `6. Blank line.`,
     `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or names. Keep @handles exactly as given. Format:`,
     req.brand === 'dfz'
