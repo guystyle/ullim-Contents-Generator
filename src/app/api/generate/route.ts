@@ -99,19 +99,24 @@ ullim presents: DFZ (Duty Free Zone)
 👤 ESCBR @dj_escbr`
 
 // Closing-sentence verb, picked at random per request so the last line varies run to run.
-const CLOSING_VERBS = [
-  '빠져들어 보세요',
-  '귀 기울여 보세요',
-  '따라가 보세요',
-  '잠겨 보세요',
-  '스며들어 보세요',
-  '몸을 실어 보세요',
-  '머물러 보세요',
-  '마주해 보세요',
-  '흘러들어 보세요',
-  '함께해 보세요',
+// Imperative "~하세요" endings (not the softer "~해 보세요").
+const CLOSING_VERBS_BASE = [
+  '빠져드세요',
+  '귀 기울이세요',
+  '따라오세요',
+  '잠기세요',
+  '스며드세요',
+  '몸을 실으세요',
+  '머무르세요',
+  '마주하세요',
+  '흘러드세요',
   '몸을 맡기세요',
 ]
+// DFZ: this one line should feel imposing.
+const CLOSING_VERBS: Record<Brand, string[]> = {
+  ullim: CLOSING_VERBS_BASE,
+  dfz: [...CLOSING_VERBS_BASE, '휩쓸리세요', '압도당하세요', '내던지세요', '굴복하세요', '잠식되세요'],
+}
 
 // Closing sentence of the most recent published artist caption per brand
 // (the paragraph right before the "ullim presents" info block).
@@ -130,9 +135,10 @@ function recentClosings(examples: RealExamples): string[] {
 function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): string {
   const recent = recentClosings(examples)
   // Skip verbs used in the latest posts so consecutive posts never end the same way.
-  const stem = (v: string) => v.replace(/\s*보세요$|세요$/, '')
-  const pool = CLOSING_VERBS.filter((v) => !recent.some((c) => c.includes(stem(v))))
-  const choices = pool.length ? pool : CLOSING_VERBS
+  const stem = (v: string) => v.replace(/세요$/, '')
+  const all = CLOSING_VERBS[req.brand]
+  const pool = all.filter((v) => !recent.some((c) => c.includes(stem(v))))
+  const choices = pool.length ? pool : all
   const verb = choices[Math.floor(Math.random() * choices.length)]
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
@@ -156,7 +162,10 @@ function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): stri
     ...(recent.length
       ? [`   - It must NOT repeat the closing of the most recent published post(s):`, ...recent.map((c) => `     "${c}"`)]
       : []),
-    `   - Keep it one sensory, tone-consistent sentence.`,
+    `   - Keep it one sensory, tone-consistent sentence, in a firm imperative "~하세요" voice (never the softer "~해 보세요").`,
+    ...(req.brand === 'dfz'
+      ? [`   - DFZ: this closing line alone should feel imposing and commanding — a decisive order, not a gentle invitation.`]
+      : []),
     `6. Blank line.`,
     `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or names. Keep @handles exactly as given. Format:`,
     req.brand === 'dfz'
