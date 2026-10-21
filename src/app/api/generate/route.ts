@@ -110,10 +110,30 @@ const CLOSING_VERBS = [
   '마주해 보세요',
   '흘러들어 보세요',
   '함께해 보세요',
+  '몸을 맡기세요',
 ]
 
+// Closing sentence of the most recent published artist caption per brand
+// (the paragraph right before the "ullim presents" info block).
+function recentClosings(examples: RealExamples): string[] {
+  return (['ullim', 'dfz'] as const)
+    .map((b) => {
+      const latest = examples[b].artistCaptions[0]
+      if (!latest) return ''
+      const paras = latest.split(/\n\s*\n/).map((p) => p.trim())
+      const infoIdx = paras.findIndex((p) => /^ullim presents/i.test(p))
+      return infoIdx > 0 ? paras[infoIdx - 1] : ''
+    })
+    .filter(Boolean)
+}
+
 function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): string {
-  const verb = CLOSING_VERBS[Math.floor(Math.random() * CLOSING_VERBS.length)]
+  const recent = recentClosings(examples)
+  // Skip verbs used in the latest posts so consecutive posts never end the same way.
+  const stem = (v: string) => v.replace(/\s*보세요$|세요$/, '')
+  const pool = CLOSING_VERBS.filter((v) => !recent.some((c) => c.includes(stem(v))))
+  const choices = pool.length ? pool : CLOSING_VERBS
+  const verb = choices[Math.floor(Math.random() * choices.length)]
   return [
     `You are the copywriter for ${req.brand === 'ullim' ? 'ullim' : 'DFZ (ullim sub-brand)'}.`,
     `TASK: Take the input below (artist biography + event info) and write an Instagram carousel POST caption introducing the artist, following the EXACT format shown.`,
@@ -132,7 +152,10 @@ function artistCaptionPrompt(req: GenerateRequest, examples: RealExamples): stri
     `4. Blank line.`,
     `5. Exactly ONE closing sentence inviting the reader, with this structure: "그가 [바이오에서 끌어낸 동작]하는 [이 아티스트 사운드의 특징을 담은 명사구]에/를/속으로 ${verb}."`,
     `   - End with "${verb}." (adjust only the particle before it so it reads naturally).`,
-    `   - The 동작 and 명사구 must come from THIS artist's bio (genre, texture, mood). Do not reuse the closing wording of the format example or real examples (e.g. never "몸을 맡기세요"), and do not reuse words already used in the body.`,
+    `   - The 동작 and 명사구 must come from THIS artist's bio (genre, texture, mood).`,
+    ...(recent.length
+      ? [`   - It must NOT repeat the closing of the most recent published post(s):`, ...recent.map((c) => `     "${c}"`)]
+      : []),
     `   - Keep it one sensory, tone-consistent sentence.`,
     `6. Blank line.`,
     `7. Event info block. Use ONLY information present in the input — never invent dates, venues, handles, or names. Keep @handles exactly as given. Format:`,
