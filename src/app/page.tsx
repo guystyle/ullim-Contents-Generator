@@ -336,7 +336,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setNote('이미지 파일만 올릴 수 있어요.')
+      setNote('이미지 파일이 아닙니다.')
       return
     }
     slides.forEach((s) => URL.revokeObjectURL(s.url))
@@ -347,7 +347,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
       const w = img.naturalWidth
       const h = img.naturalHeight
       if (w !== 2160 || h !== 1350) {
-        setNote(`이미지가 ${w}×${h}입니다. 2160×1350 기준으로 만들어졌지만 가로로 반을 잘라 진행할게요.`)
+        setNote(`${w}×${h} 이미지입니다 (기준: 2160×1350)`)
       }
 
       // Split into left/right halves at full resolution.
@@ -422,10 +422,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
           background: drag ? 'var(--surface)' : 'transparent',
         }}
       >
-        <p className="text-xs" style={{ color: 'var(--fg)' }}>2160×1350 이미지를 끌어다 놓거나 클릭해서 선택</p>
-        <p className="text-[11px] mt-1" style={{ color: 'var(--fg-muted)' }}>
-          캐러셀 2장으로 자르고, 이미지 속 소개 문구를 읽어 아래 바이오란에 채워요
-        </p>
+        <p className="text-xs" style={{ color: 'var(--fg-muted)' }}>이미지 올리기</p>
         <input
           ref={inputRef}
           type="file"
@@ -448,22 +445,22 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
               <button key={s.url} onClick={() => download(s)} className="group text-left">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={s.url} alt={`캐러셀 ${i + 1}페이지`} className="w-full rounded-xl" style={{ border: '1px solid var(--border-muted)' }} />
-                <span className="text-[11px] mt-1 block" style={{ color: 'var(--fg-muted)' }}>{i + 1}페이지 · 눌러서 저장</span>
+                <span className="text-[11px] mt-1 block" style={{ color: 'var(--fg-muted)' }}>{i + 1}페이지</span>
               </button>
             ))}
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>
-              {ocrState === 'reading' && '이미지 속 문구 읽는 중...'}
-              {ocrState === 'done' && '✓ 문구를 읽어 바이오란에 채웠어요'}
-              {ocrState === 'error' && '문구를 읽지 못했어요. 바이오를 직접 입력해주세요.'}
+              {ocrState === 'reading' && '문구 읽는 중...'}
+              {ocrState === 'done' && '✓ 바이오 입력됨'}
+              {ocrState === 'error' && '문구 읽기 실패'}
             </span>
             <button
               onClick={() => slides.forEach((s, i) => setTimeout(() => download(s), i * 300))}
               className="text-xs px-3 py-1.5 rounded-full border transition-colors"
               style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
             >
-              2장 모두 저장
+              모두 저장
             </button>
           </div>
         </div>
@@ -796,11 +793,6 @@ export default function Home() {
                 onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
                 onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border-muted)')}
               />
-              {isArtistCaption && (
-                <p className="text-[11px] mt-2" style={{ color: 'var(--fg-muted)' }}>
-                  ※ 위에 캔바 이미지를 올리면 자동으로 채워져요. 직접 입력·수정해도 됩니다.
-                </p>
-              )}
             </div>
           )}
 
@@ -863,7 +855,7 @@ export default function Home() {
                 <textarea
                   value={pTheme}
                   onChange={(e) => setPTheme(e.target.value)}
-                  placeholder={'파티 테마·컨셉·분위기, 특별 게스트 소개 등 본문에 반영할 내용을 자유롭게.\n\ne.g. 해방, 흐름, 날카로운 전자음과 현악의 질감. 반년의 축적을 지나 새로운 주축을 세우는 밤.'}
+                  placeholder="e.g. 해방, 흐름, 날카로운 전자음과 현악의 질감"
                   rows={6}
                   className="w-full rounded-2xl px-4 py-3 text-sm focus:outline-none transition-colors resize-y"
                   style={{ background: 'var(--surface)', border: '1px solid var(--border-muted)', color: 'var(--fg)', lineHeight: '1.6' }}
@@ -924,11 +916,10 @@ export default function Home() {
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
                       DJ 추가
                     </button>
-                    <p className="text-[11px] mt-1" style={{ color: 'var(--border)' }}>시간은 선택 (ullim은 보통 표기, DFZ는 생략)</p>
                   </div>
                   <label className="flex items-center gap-2 pt-1 cursor-pointer">
                     <input type="checkbox" checked={pWithUllim} onChange={(e) => setPWithUllim(e.target.checked)} className="accent-current" style={{ accentColor: 'var(--accent)' }} />
-                    <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>라인업 끝에 &ldquo;with ullim&rdquo; 표기</span>
+                    <span className="text-[11px]" style={{ color: 'var(--fg-muted)' }}>with ullim 표기</span>
                   </label>
                 </div>
               </div>
