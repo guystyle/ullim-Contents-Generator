@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { TEXT_MODEL } from '@/lib/models'
+import { TEXT_MODEL, TEXT_GEN_CONFIG } from '@/lib/models'
 import { fetchRealExamples, realExamples, closingSentence, type RealExamples } from '@/lib/insta-examples'
 import { toneContext, SHARED_RULES, SELF_CHECK, type Brand, type ContentType } from '@/lib/tone'
 
@@ -407,7 +407,7 @@ export async function POST(req: NextRequest) {
     }
 
     // No sampling params: Gemini deprecated temperature/top_p/top_k (defaults only).
-    const model = genAI.getGenerativeModel({ model: TEXT_MODEL })
+    const model = genAI.getGenerativeModel({ model: TEXT_MODEL, generationConfig: TEXT_GEN_CONFIG })
     const examples = await fetchRealExamples()
     const prompt = buildPrompt(body, examples)
 
@@ -427,8 +427,13 @@ export async function POST(req: NextRequest) {
 
     // Hard-enforce length limits for the image card (model is unreliable on its own).
     if (body.contentType === 'artist-image') {
-      if (parsed.korean) parsed.korean = await enforceLength(model, parsed.korean, 'ko', 60, 75, body.brand)
-      if (parsed.english) parsed.english = await enforceLength(model, parsed.english, 'en', 120, 140, body.brand)
+      // Korean and English are independent — fix both in parallel.
+      const [ko, en] = await Promise.all([
+        parsed.korean ? enforceLength(model, parsed.korean, 'ko', 60, 75, body.brand) : parsed.korean,
+        parsed.english ? enforceLength(model, parsed.english, 'en', 120, 140, body.brand) : parsed.english,
+      ])
+      parsed.korean = ko
+      parsed.english = en
     }
 
     return NextResponse.json(parsed)
