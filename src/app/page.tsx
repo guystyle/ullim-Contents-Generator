@@ -311,7 +311,7 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
 
 /* ── Carousel splitter: one 2160×1350 Canva export → two 1080×1350 slides + OCR ── */
 
-type Slide = { url: string; name: string }
+type Slide = { url: string }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -353,7 +353,6 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
 
       // Split into left/right halves at full resolution.
       const half = Math.floor(w / 2)
-      const name = (baseName.trim() || 'artist').replace(/[^\w가-힣.-]+/g, '_')
       const out: Slide[] = []
       for (let i = 0; i < 2; i++) {
         const c = document.createElement('canvas')
@@ -361,7 +360,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
         c.height = h
         c.getContext('2d')!.drawImage(img, i * half, 0, half, h, 0, 0, half, h)
         const blob = await canvasToBlob(c, 'image/png')
-        out.push({ url: URL.createObjectURL(blob), name: `${name}_${i + 1}.png` })
+        out.push({ url: URL.createObjectURL(blob) })
       }
       setSlides(out)
 
@@ -397,10 +396,12 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
     }
   }
 
-  const download = (s: Slide) => {
+  // Name the file from the DJ name at save time, not upload time.
+  const download = (s: Slide, i: number) => {
+    const name = (baseName.trim() || 'artist').replace(/[^\w가-힣.-]+/g, '_')
     const a = document.createElement('a')
     a.href = s.url
-    a.download = s.name
+    a.download = `${name}_${i + 1}.png`
     a.click()
   }
 
@@ -443,7 +444,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
         <div className="mt-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             {slides.map((s, i) => (
-              <button key={s.url} onClick={() => download(s)} className="group text-left">
+              <button key={s.url} onClick={() => download(s, i)} className="group text-left">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={s.url} alt={`캐러셀 ${i + 1}페이지`} className="w-full rounded-xl" style={{ border: '1px solid var(--border-muted)' }} />
                 <span className="text-[11px] mt-1 block" style={{ color: 'var(--fg-muted)' }}>{i + 1}페이지</span>
@@ -457,7 +458,7 @@ function CarouselSplitter({ baseName, onText }: { baseName: string; onText: (t: 
               {ocrState === 'error' && '문구 읽기 실패'}
             </span>
             <button
-              onClick={() => slides.forEach((s, i) => setTimeout(() => download(s), i * 300))}
+              onClick={() => slides.forEach((s, i) => setTimeout(() => download(s, i), i * 300))}
               className="text-xs px-3 py-1.5 rounded-full border transition-colors"
               style={{ borderColor: 'var(--border-muted)', color: 'var(--fg-muted)' }}
             >
