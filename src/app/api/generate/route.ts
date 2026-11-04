@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { TEXT_MODEL } from '@/lib/models'
 import { fetchRealExamples, realExamples, closingSentence, type RealExamples } from '@/lib/insta-examples'
 import { toneContext, SHARED_RULES, SELF_CHECK, type Brand, type ContentType } from '@/lib/tone'
 
@@ -406,7 +407,7 @@ export async function POST(req: NextRequest) {
     }
 
     // No sampling params: Gemini deprecated temperature/top_p/top_k (defaults only).
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: TEXT_MODEL })
     const examples = await fetchRealExamples()
     const prompt = buildPrompt(body, examples)
 

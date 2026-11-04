@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { TEXT_MODEL } from '@/lib/models'
 import { toneContext, SHARED_RULES, type Brand, type ContentType } from '@/lib/tone'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: TEXT_MODEL })
 
     const langName = body.lang === 'en' ? 'English' : 'Korean'
     const prompt = [

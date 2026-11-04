@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { OCR_MODEL } from '@/lib/models'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { image, mimeType } = (await req.json()) as { image?: string; mimeType?: string }
     if (!image) return NextResponse.json({ error: 'Missing image' }, { status: 400 })
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: OCR_MODEL })
     const result = await model.generateContent([
       { inlineData: { data: image, mimeType: mimeType || 'image/jpeg' } },
       [
